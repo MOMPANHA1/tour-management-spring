@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: panha-app
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: tour-management
+      POSTGRES_USER: panha
+      POSTGRES_PASSWORD: panha
+
+    ports:
+      - "1000:5432"
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

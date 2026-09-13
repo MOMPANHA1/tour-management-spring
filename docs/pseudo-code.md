@@ -41,7 +41,7 @@ CALL service.method()                 ហៅសេវាផ្សេង
 RETURN value                          ត្រឡប់លទ្ធផល
 THROW <ErrorType>("សារខ្មែរ")          បោះកំហុស
 ORELSE THROW <ErrorType>("...")       Optional ទទេ → បោះកំហុស
-QUERY name(args) -> Type              custom repository query
+@Query name(args) -> Type              custom repository query
 # ...                                 មតិយោបល់ពន្យល់
 ```
 
@@ -75,12 +75,12 @@ QUERY name(args) -> Type              custom repository query
 
 | Pseudo-code | HTTP | ប្រើពេលណា |
 |---|---|---|
-| `THROW BadRequest(...)` | 400 | ទិន្នន័យចូលមិនត្រឹមត្រូវ |
-| `THROW Unauthorized(...)` | 401 | មិនទាន់ login |
-| `THROW Forbidden(...)` | 403 | login ហើយ តែគ្មានសិទ្ធិ |
-| `THROW NotFound(...)` | 404 | រកមិនឃើញធនធាន |
-| `THROW Conflict(...)` | 409 | ស្ទួន · ស្ថានភាពមិនអនុញ្ញាត · អស់កៅអី |
-| `THROW UnprocessableEntity(...)` | 422 | ត្រឹមត្រូវតាមទម្រង់ តែខុសវិន័យអាជីវកម្ម |
+| `THROW ResponseStatusException(HttpStatus.BAD_REQUEST, ...)` | 400 | ទិន្នន័យចូលមិនត្រឹមត្រូវ |
+| `THROW ResponseStatusException(HttpStatus.UNAUTHORIZED, ...)` | 401 | មិនទាន់ login |
+| `THROW ResponseStatusException(HttpStatus.FORBIDDEN, ...)` | 403 | login ហើយ តែគ្មានសិទ្ធិ |
+| `THROW ResponseStatusException(HttpStatus.NOT_FOUND, ...)` | 404 | រកមិនឃើញធនធាន |
+| `THROW ResponseStatusException(HttpStatus.CONFLICT, ...)` | 409 | ស្ទួន · ស្ថានភាពមិនអនុញ្ញាត · អស់កៅអី |
+| `THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, ...)` | 422 | ត្រឹមត្រូវតាមទម្រង់ តែខុសវិន័យអាជីវកម្ម |
 
 ### ០.៥ Field រួមគ្រប់ Entity (Base Auditing)
 
@@ -125,9 +125,9 @@ END FUNCTION
 co.panha.hibernate.tourmanagement
 ├── TourManagementApplication.java
 ├── config/           JpaAuditingConfig, OpenApiConfig, WebConfig
-├── exception/        GlobalExceptionHandler, ApiErrorResponse
+├── exception/        GlobalAppException, ApiErrorResponse
 ├── security/         SecurityConfig, AuthUtils
-├── utils/            CodeGenerator, DateUtils
+├── utils/            GenerateUtils, DateUtils
 ├── base/             BaseEntity, PageResponse, PageMapper
 └── features/
     ├── category/     Category, Repository, Service, ServiceImpl, Controller, Mapper, dto/
@@ -215,24 +215,24 @@ REPOSITORY CategoryRepository EXTENDS JpaRepository<Category, Long>
     existsBySlug(slug)                      -> boolean
     findAllByIsDeletedFalse(pageable)       -> Page<Category>
 
-    QUERY countActiveTours(categoryId) -> long
-        SQL: SELECT COUNT(t) FROM Tour t
+    @Query countActiveTours(categoryId) -> long
+        JPQL: SELECT COUNT(t) FROM Tour t
              WHERE t.category.id = :categoryId AND t.isDeleted = false
 ```
 
 ## F1.5 Service
 
 ```
-FUNCTION create(req) -> CategoryResponse:
+FUNCTION createNew(req) -> CategoryResponse:
 
     # ១. Validate (ធ្វើដោយ @Valid រួចហើយ)
 
     # ៣. Check Rules
     IF categoryRepo.existsByNameIgnoreCaseAndIsDeletedFalse(req.name) THEN
-        THROW Conflict("ប្រភេទឈ្មោះ '" + req.name + "' មានរួចហើយ")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "ប្រភេទឈ្មោះ '" + req.name + "' មានរួចហើយ")
 
     # ៥. Build
-    category = mapper.fromCreateRequest(req)
+    category = mapper.toEntity(req)
     SET category.uuid      = randomUUID()
     SET category.slug      = generateUniqueSlug(req.name)
     SET category.isDeleted = false
@@ -265,37 +265,37 @@ END FUNCTION
 
 FUNCTION findByUuid(uuid) -> CategoryResponse:
     category = categoryRepo.findByUuidAndIsDeletedFalse(uuid)
-               ORELSE THROW NotFound("រកមិនឃើញប្រភេទ uuid = " + uuid)
+               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញប្រភេទ uuid = " + uuid)
     RETURN mapper.toResponse(category)
 END FUNCTION
 
 
-FUNCTION update(uuid, req) -> CategoryResponse:
+FUNCTION updateByUuid(uuid, req) -> CategoryResponse:
 
     category = categoryRepo.findByUuidAndIsDeletedFalse(uuid)
-               ORELSE THROW NotFound("រកមិនឃើញប្រភេទ uuid = " + uuid)
+               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញប្រភេទ uuid = " + uuid)
 
     # ពិនិត្យស្ទួន — តែបើឈ្មោះពិតជាប្តូរ
     IF req.name IS NOT NULL AND req.name != category.name THEN
         IF categoryRepo.existsByNameIgnoreCaseAndIsDeletedFalse(req.name) THEN
-            THROW Conflict("ប្រភេទឈ្មោះនេះមានរួចហើយ")
+            THROW ResponseStatusException(HttpStatus.CONFLICT, "ប្រភេទឈ្មោះនេះមានរួចហើយ")
         SET category.slug = generateUniqueSlug(req.name)
 
-    mapper.patchFromRequest(req, category)     # update តែ field មិន null
+    mapper.toEntity(req, category)     # update តែ field មិន null
     RETURN mapper.toResponse(categoryRepo.save(category))
 
 END FUNCTION
 
 
-FUNCTION delete(uuid) -> void:
+FUNCTION deleteByUuid(uuid) -> void:
 
     category = categoryRepo.findByUuidAndIsDeletedFalse(uuid)
-               ORELSE THROW NotFound("រកមិនឃើញប្រភេទ uuid = " + uuid)
+               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញប្រភេទ uuid = " + uuid)
 
     # វិន័យ៖ លុបមិនបានបើនៅមាន Tour សកម្ម
     activeTours = categoryRepo.countActiveTours(category.id)
     IF activeTours > 0 THEN
-        THROW Conflict("មិនអាចលុបបានទេ ព្រោះនៅមាន " + activeTours + " Tour ក្នុងប្រភេទនេះ")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "មិនអាចលុបបានទេ ព្រោះនៅមាន " + activeTours + " Tour ក្នុងប្រភេទនេះ")
 
     SET category.isDeleted = true
     categoryRepo.save(category)
@@ -309,7 +309,7 @@ END FUNCTION
 CONTROLLER CategoryController  base = "/api/v1/categories"
 
     POST   "/"              status 201  @Valid CreateCategoryRequest
-           -> RETURN service.create(body)
+           -> RETURN service.createNew(body)
 
     GET    "/"              status 200  page=0, size=10
            -> RETURN service.findAll(page, size)
@@ -318,10 +318,10 @@ CONTROLLER CategoryController  base = "/api/v1/categories"
            -> RETURN service.findByUuid(uuid)
 
     PATCH  "/{uuid}"        status 200  @Valid UpdateCategoryRequest
-           -> RETURN service.update(uuid, body)
+           -> RETURN service.updateByUuid(uuid, body)
 
     DELETE "/{uuid}"        status 204
-           -> CALL service.delete(uuid)
+           -> CALL service.deleteByUuid(uuid)
 ```
 
 ---
@@ -394,16 +394,16 @@ REPOSITORY DestinationRepository EXTENDS JpaRepository<Destination, Long>
 ## F2.5 Service
 
 ```
-FUNCTION create(req) -> DestinationResponse:
+FUNCTION createNew(req) -> DestinationResponse:
 
     IF destinationRepo.existsByNameIgnoreCaseAndProvinceIgnoreCase(req.name, req.province) THEN
-        THROW Conflict("ទីតាំង '" + req.name + "' នៅខេត្ត " + req.province + " មានរួចហើយ")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "ទីតាំង '" + req.name + "' នៅខេត្ត " + req.province + " មានរួចហើយ")
 
     # វិន័យ៖ បើដាក់ latitude ត្រូវដាក់ longitude ផងដែរ
     IF (req.latitude IS NULL) != (req.longitude IS NULL) THEN
-        THROW BadRequest("ត្រូវបំពេញ latitude និង longitude ទាំងពីរ ឬទុកទទេទាំងពីរ")
+        THROW ResponseStatusException(HttpStatus.BAD_REQUEST, "ត្រូវបំពេញ latitude និង longitude ទាំងពីរ ឬទុកទទេទាំងពីរ")
 
-    destination = mapper.fromCreateRequest(req)
+    destination = mapper.toEntity(req)
     SET destination.uuid      = randomUUID()
     SET destination.country   = req.country ORELSE "Cambodia"
     SET destination.isDeleted = false
@@ -427,25 +427,25 @@ END FUNCTION
 
 FUNCTION findByUuid(uuid) -> DestinationDetailResponse:
     destination = destinationRepo.findByUuidAndIsDeletedFalse(uuid)
-                  ORELSE THROW NotFound("រកមិនឃើញទីតាំង uuid = " + uuid)
+                  ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញទីតាំង uuid = " + uuid)
     RETURN mapper.toDetailResponse(destination)
 END FUNCTION
 
 
-FUNCTION update(uuid, req) -> DestinationResponse:
+FUNCTION updateByUuid(uuid, req) -> DestinationResponse:
     destination = destinationRepo.findByUuidAndIsDeletedFalse(uuid)
-                  ORELSE THROW NotFound("រកមិនឃើញទីតាំង uuid = " + uuid)
-    mapper.patchFromRequest(req, destination)
+                  ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញទីតាំង uuid = " + uuid)
+    mapper.toEntity(req, destination)
     RETURN mapper.toResponse(destinationRepo.save(destination))
 END FUNCTION
 
 
-FUNCTION delete(uuid) -> void:
+FUNCTION deleteByUuid(uuid) -> void:
     destination = destinationRepo.findByUuidAndIsDeletedFalse(uuid)
-                  ORELSE THROW NotFound("រកមិនឃើញទីតាំង uuid = " + uuid)
+                  ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញទីតាំង uuid = " + uuid)
 
     IF destination.tours IS NOT EMPTY THEN
-        THROW Conflict("មិនអាចលុបបានទេ ព្រោះនៅមាន Tour ភ្ជាប់នឹងទីតាំងនេះ")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "មិនអាចលុបបានទេ ព្រោះនៅមាន Tour ភ្ជាប់នឹងទីតាំងនេះ")
 
     SET destination.isDeleted = true
     destinationRepo.save(destination)
@@ -535,8 +535,8 @@ REPOSITORY GuideRepository EXTENDS JpaRepository<Guide, Long>
     findAllByStatusAndIsDeletedFalse(status, pageable) -> Page<Guide>
     countByIsDeletedFalse()             -> long
 
-    QUERY findAvailableGuides(startDate, endDate) -> List<Guide>
-        SQL: SELECT g FROM Guide g
+    @Query findAvailableGuides(startDate, endDate) -> List<Guide>
+        JPQL: SELECT g FROM Guide g
              WHERE g.status = 'ACTIVE' AND g.isDeleted = false
                AND g.id NOT IN (
                    SELECT s.guide.id FROM TourSchedule s
@@ -550,15 +550,15 @@ REPOSITORY GuideRepository EXTENDS JpaRepository<Guide, Long>
 ## F3.5 Service
 
 ```
-FUNCTION create(req) -> GuideResponse:
+FUNCTION createNew(req) -> GuideResponse:
 
     IF guideRepo.existsByPhoneNumber(req.phoneNumber) THEN
-        THROW Conflict("លេខទូរស័ព្ទនេះមានក្នុងប្រព័ន្ធរួចហើយ")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "លេខទូរស័ព្ទនេះមានក្នុងប្រព័ន្ធរួចហើយ")
 
     IF req.email IS NOT NULL AND guideRepo.existsByEmail(req.email) THEN
-        THROW Conflict("អ៊ីមែលនេះមានក្នុងប្រព័ន្ធរួចហើយ")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "អ៊ីមែលនេះមានក្នុងប្រព័ន្ធរួចហើយ")
 
-    guide = mapper.fromCreateRequest(req)
+    guide = mapper.toEntity(req)
     SET guide.uuid      = randomUUID()
     SET guide.code      = generateSequentialCode("GD", guideRepo.countByIsDeletedFalse())
     SET guide.status    = ACTIVE
@@ -572,10 +572,10 @@ END FUNCTION
 FUNCTION findAvailable(startDate, endDate) -> List<GuideResponse>:
 
     IF startDate IS NULL OR endDate IS NULL THEN
-        THROW BadRequest("ត្រូវបញ្ជាក់ startDate និង endDate")
+        THROW ResponseStatusException(HttpStatus.BAD_REQUEST, "ត្រូវបញ្ជាក់ startDate និង endDate")
 
     IF endDate IS BEFORE startDate THEN
-        THROW BadRequest("endDate ត្រូវក្រោយ startDate")
+        THROW ResponseStatusException(HttpStatus.BAD_REQUEST, "endDate ត្រូវក្រោយ startDate")
 
     guides = guideRepo.findAvailableGuides(startDate, endDate)
     RETURN guides MAP mapper::toResponse
@@ -586,16 +586,16 @@ END FUNCTION
 FUNCTION changeStatus(uuid, req) -> GuideResponse:
 
     guide = guideRepo.findByUuidAndIsDeletedFalse(uuid)
-            ORELSE THROW NotFound("រកមិនឃើញមគ្គុទ្ទេសក៍ uuid = " + uuid)
+            ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញមគ្គុទ្ទេសក៍ uuid = " + uuid)
 
     IF guide.status == req.status THEN
-        THROW Conflict("មគ្គុទ្ទេសក៍នេះស្ថិតក្នុងស្ថានភាព " + req.status + " រួចហើយ")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "មគ្គុទ្ទេសក៍នេះស្ថិតក្នុងស្ថានភាព " + req.status + " រួចហើយ")
 
     # វិន័យ៖ ដាក់ INACTIVE មិនបានបើនៅមានកាលវិភាគអនាគត
     IF req.status == INACTIVE THEN
         upcoming = scheduleRepo.countUpcomingByGuide(guide.id, today())
         IF upcoming > 0 THEN
-            THROW Conflict("នៅមានកាលវិភាគអនាគត " + upcoming + " ត្រូវប្តូរមគ្គុទ្ទេសក៍សិន")
+            THROW ResponseStatusException(HttpStatus.CONFLICT, "នៅមានកាលវិភាគអនាគត " + upcoming + " ត្រូវប្តូរមគ្គុទ្ទេសក៍សិន")
 
     SET guide.status = req.status
     RETURN mapper.toResponse(guideRepo.save(guide))
@@ -738,13 +738,13 @@ REPOSITORY TourRepository EXTENDS JpaRepository<Tour, Long>, JpaSpecificationExe
     existsBySlug(slug)                  -> boolean
     countByIsDeletedFalse()             -> long
 
-    QUERY findPopular(pageable) -> Page<Tour>
-        SQL: SELECT t FROM Tour t
+    @Query findPopular(pageable) -> Page<Tour>
+        JPQL: SELECT t FROM Tour t
              WHERE t.isDeleted = false AND t.isPublished = true AND t.reviewCount >= 3
              ORDER BY t.averageRating DESC, t.reviewCount DESC
 
-    QUERY recalculateRating(tourId) -> void
-        SQL: UPDATE Tour t SET
+    @Query recalculateRating(tourId) -> void
+        JPQL: UPDATE Tour t SET
                  t.averageRating = (SELECT COALESCE(AVG(r.rating),0) FROM Review r
                                     WHERE r.tour.id = :tourId AND r.isDeleted = false),
                  t.reviewCount   = (SELECT COUNT(r) FROM Review r
@@ -773,27 +773,27 @@ SPECIFICATION TourSpecs:
 ## F4.6 Service
 
 ```
-FUNCTION create(req) -> TourDetailResponse:
+FUNCTION createNew(req) -> TourDetailResponse:
 
     # ១. Validate — វិន័យឆ្លង field
     IF req.durationNights IS NOT NULL AND req.durationNights > req.durationDays THEN
-        THROW BadRequest("ចំនួនយប់មិនអាចលើសចំនួនថ្ងៃ")
+        THROW ResponseStatusException(HttpStatus.BAD_REQUEST, "ចំនួនយប់មិនអាចលើសចំនួនថ្ងៃ")
 
     IF req.minGroupSize IS NOT NULL AND req.minGroupSize > req.maxGroupSize THEN
-        THROW BadRequest("minGroupSize មិនអាចលើស maxGroupSize")
+        THROW ResponseStatusException(HttpStatus.BAD_REQUEST, "minGroupSize មិនអាចលើស maxGroupSize")
 
     # ២. Load ធនធានពាក់ព័ន្ធ
     category = categoryRepo.findByUuidAndIsDeletedFalse(req.categoryUuid)
-               ORELSE THROW NotFound("រកមិនឃើញប្រភេទ uuid = " + req.categoryUuid)
+               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញប្រភេទ uuid = " + req.categoryUuid)
 
     destinations = destinationRepo.findAllByUuidIn(req.destinationUuids)
 
     IF destinations.size != req.destinationUuids.size THEN
         missing = req.destinationUuids MINUS (destinations MAP uuid)
-        THROW NotFound("រកមិនឃើញទីតាំង៖ " + missing)
+        THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញទីតាំង៖ " + missing)
 
     # ៥. Build
-    tour = mapper.fromCreateRequest(req)
+    tour = mapper.toEntity(req)
     SET tour.uuid          = randomUUID()
     SET tour.code          = generateSequentialCode("TR", tourRepo.countByIsDeletedFalse())
     SET tour.slug          = generateUniqueSlug(req.title)
@@ -832,7 +832,7 @@ FUNCTION search(filter, page, size) -> PageResponse<TourCardResponse>:
     IF filter.minPrice IS NOT NULL OR filter.maxPrice IS NOT NULL THEN
         IF filter.minPrice IS NOT NULL AND filter.maxPrice IS NOT NULL
            AND filter.minPrice > filter.maxPrice THEN
-            THROW BadRequest("minPrice មិនអាចលើស maxPrice")
+            THROW ResponseStatusException(HttpStatus.BAD_REQUEST, "minPrice មិនអាចលើស maxPrice")
         spec = spec.and(priceBetween(filter.minPrice, filter.maxPrice))
 
     IF filter.minDays IS NOT NULL OR filter.maxDays IS NOT NULL THEN
@@ -862,7 +862,7 @@ END FUNCTION
 FUNCTION findByUuid(uuid) -> TourDetailResponse:
 
     tour = tourRepo.findByUuidAndIsDeletedFalse(uuid)
-           ORELSE THROW NotFound("រកមិនឃើញ Tour uuid = " + uuid)
+           ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញ Tour uuid = " + uuid)
 
     response = mapper.toDetailResponse(tour)
     SET response.upcomingSchedules = scheduleRepo.findOpenSchedulesByTour(tour.id, today())
@@ -877,20 +877,20 @@ END FUNCTION
 FUNCTION publish(uuid, shouldPublish) -> TourDetailResponse:
 
     tour = tourRepo.findByUuidAndIsDeletedFalse(uuid)
-           ORELSE THROW NotFound("រកមិនឃើញ Tour uuid = " + uuid)
+           ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញ Tour uuid = " + uuid)
 
     IF shouldPublish == true THEN
         # វិន័យ៖ បើកលក់បានលុះត្រាតែពេញលក្ខខណ្ឌ
         IF tour.description IS EMPTY THEN
-            THROW UnprocessableEntity("ត្រូវបំពេញការពិពណ៌នាមុនបើកលក់")
+            THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "ត្រូវបំពេញការពិពណ៌នាមុនបើកលក់")
         IF tour.thumbnailUrl IS EMPTY THEN
-            THROW UnprocessableEntity("ត្រូវដាក់រូបភាពគម្របមុនបើកលក់")
+            THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "ត្រូវដាក់រូបភាពគម្របមុនបើកលក់")
         IF tour.destinations IS EMPTY THEN
-            THROW UnprocessableEntity("ត្រូវមានទីតាំងយ៉ាងតិច ១")
+            THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "ត្រូវមានទីតាំងយ៉ាងតិច ១")
 
         openSchedules = scheduleRepo.countOpenSchedules(tour.id, today())
         IF openSchedules == 0 THEN
-            THROW UnprocessableEntity("ត្រូវមានកាលវិភាគចេញដំណើរយ៉ាងតិច ១ មុនបើកលក់")
+            THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "ត្រូវមានកាលវិភាគចេញដំណើរយ៉ាងតិច ១ មុនបើកលក់")
 
     SET tour.isPublished = shouldPublish
     RETURN mapper.toDetailResponse(tourRepo.save(tour))
@@ -898,14 +898,14 @@ FUNCTION publish(uuid, shouldPublish) -> TourDetailResponse:
 END FUNCTION
 
 
-FUNCTION delete(uuid) -> void:
+FUNCTION deleteByUuid(uuid) -> void:
 
     tour = tourRepo.findByUuidAndIsDeletedFalse(uuid)
-           ORELSE THROW NotFound("រកមិនឃើញ Tour uuid = " + uuid)
+           ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញ Tour uuid = " + uuid)
 
     activeBookings = bookingRepo.countActiveBookingsByTour(tour.id)
     IF activeBookings > 0 THEN
-        THROW Conflict("មិនអាចលុបបានទេ ព្រោះនៅមានការកក់សកម្ម " + activeBookings)
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "មិនអាចលុបបានទេ ព្រោះនៅមានការកក់សកម្ម " + activeBookings)
 
     SET tour.isPublished = false
     SET tour.isDeleted   = true
@@ -1021,74 +1021,74 @@ REPOSITORY ScheduleRepository EXTENDS JpaRepository<TourSchedule, Long>
     findByStatusInAndDepartureDateBefore(statuses, date) -> List<TourSchedule>
     findByStatusAndReturnDateBefore(status, date)        -> List<TourSchedule>
 
-    QUERY findByUuidForUpdate(uuid) -> Optional<TourSchedule>
+    @Query findByUuidForUpdate(uuid) -> Optional<TourSchedule>
         # @Lock(PESSIMISTIC_WRITE) — ចាក់សោជួរពេលកក់ ដើម្បីការពារ race condition
-        SQL: SELECT s FROM TourSchedule s WHERE s.uuid = :uuid AND s.isDeleted = false
+        JPQL: SELECT s FROM TourSchedule s WHERE s.uuid = :uuid AND s.isDeleted = false
 
-    QUERY findOpenSchedulesByTour(tourId, fromDate) -> List<TourSchedule>
-        SQL: SELECT s FROM TourSchedule s
+    @Query findOpenSchedulesByTour(tourId, fromDate) -> List<TourSchedule>
+        JPQL: SELECT s FROM TourSchedule s
              WHERE s.tour.id = :tourId AND s.isDeleted = false
                AND s.departureDate >= :fromDate
                AND s.status IN ('OPEN','FULL')
              ORDER BY s.departureDate ASC
 
-    QUERY countOpenSchedules(tourId, fromDate) -> long
+    @Query countOpenSchedules(tourId, fromDate) -> long
 
-    QUERY countUpcomingByGuide(guideId, fromDate) -> long
-        SQL: SELECT COUNT(s) FROM TourSchedule s
+    @Query countUpcomingByGuide(guideId, fromDate) -> long
+        JPQL: SELECT COUNT(s) FROM TourSchedule s
              WHERE s.guide.id = :guideId
                AND s.departureDate >= :fromDate
                AND s.status NOT IN ('CANCELLED','COMPLETED')
 
-    QUERY hasGuideConflict(guideId, start, end, excludeScheduleId) -> boolean
-        SQL: SELECT COUNT(s) > 0 FROM TourSchedule s
+    @Query hasGuideConflict(guideId, start, end, excludeScheduleId) -> boolean
+        JPQL: SELECT COUNT(s) > 0 FROM TourSchedule s
              WHERE s.guide.id = :guideId
                AND s.status <> 'CANCELLED'
                AND (:excludeScheduleId IS NULL OR s.id <> :excludeScheduleId)
                AND s.departureDate <= :end
                AND s.returnDate    >= :start
 
-    QUERY findDepartingToday(date) -> List<TourSchedule>      # សម្រាប់ scheduled job
+    @Query findDepartingToday(date) -> List<TourSchedule>      # សម្រាប់ scheduled job
 ```
 
 ## F5.5 Service
 
 ```
-FUNCTION create(req) -> ScheduleResponse:
+FUNCTION createNew(req) -> ScheduleResponse:
 
     # ១. Validate កាលបរិច្ឆេទ
     IF req.returnDate IS BEFORE req.departureDate THEN
-        THROW BadRequest("ថ្ងៃត្រឡប់ត្រូវក្រោយ ឬស្មើថ្ងៃចេញដំណើរ")
+        THROW ResponseStatusException(HttpStatus.BAD_REQUEST, "ថ្ងៃត្រឡប់ត្រូវក្រោយ ឬស្មើថ្ងៃចេញដំណើរ")
 
     IF req.departureDate IS BEFORE today() THEN
-        THROW BadRequest("ថ្ងៃចេញដំណើរមិនអាចជាអតីតកាល")
+        THROW ResponseStatusException(HttpStatus.BAD_REQUEST, "ថ្ងៃចេញដំណើរមិនអាចជាអតីតកាល")
 
     # ២. Load
     tour = tourRepo.findByUuidAndIsDeletedFalse(req.tourUuid)
-           ORELSE THROW NotFound("រកមិនឃើញ Tour uuid = " + req.tourUuid)
+           ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញ Tour uuid = " + req.tourUuid)
 
     # ៣. Check Rules
     actualDays = daysBetween(req.departureDate, req.returnDate) + 1
     IF actualDays != tour.durationDays THEN
-        THROW UnprocessableEntity(
+        THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, 
             "រយៈពេលមិនត្រូវគ្នា — Tour នេះមាន " + tour.durationDays + " ថ្ងៃ តែកាលវិភាគមាន " + actualDays)
 
     IF req.capacity > tour.maxGroupSize THEN
-        THROW BadRequest("capacity មិនអាចលើស maxGroupSize របស់ Tour (" + tour.maxGroupSize + ")")
+        THROW ResponseStatusException(HttpStatus.BAD_REQUEST, "capacity មិនអាចលើស maxGroupSize របស់ Tour (" + tour.maxGroupSize + ")")
 
     IF req.capacity < tour.minGroupSize THEN
-        THROW BadRequest("capacity មិនអាចតិចជាង minGroupSize របស់ Tour")
+        THROW ResponseStatusException(HttpStatus.BAD_REQUEST, "capacity មិនអាចតិចជាង minGroupSize របស់ Tour")
 
     guide = NULL
     IF req.guideUuid IS NOT NULL THEN
         guide = guideRepo.findByUuidAndIsDeletedFalse(req.guideUuid)
-                ORELSE THROW NotFound("រកមិនឃើញមគ្គុទ្ទេសក៍")
+                ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញមគ្គុទ្ទេសក៍")
 
         IF guide.status != ACTIVE THEN
-            THROW Conflict("មគ្គុទ្ទេសក៍នេះមិនសកម្ម")
+            THROW ResponseStatusException(HttpStatus.CONFLICT, "មគ្គុទ្ទេសក៍នេះមិនសកម្ម")
 
         IF scheduleRepo.hasGuideConflict(guide.id, req.departureDate, req.returnDate, NULL) THEN
-            THROW Conflict("មគ្គុទ្ទេសក៍នេះមានកាលវិភាគជាន់គ្នាក្នុងចន្លោះថ្ងៃនេះ")
+            THROW ResponseStatusException(HttpStatus.CONFLICT, "មគ្គុទ្ទេសក៍នេះមានកាលវិភាគជាន់គ្នាក្នុងចន្លោះថ្ងៃនេះ")
 
     # ៥. Build
     schedule = NEW TourSchedule
@@ -1124,20 +1124,20 @@ END FUNCTION
 FUNCTION assignGuide(uuid, req) -> ScheduleResponse:
 
     schedule = scheduleRepo.findByUuidAndIsDeletedFalse(uuid)
-               ORELSE THROW NotFound("រកមិនឃើញកាលវិភាគ uuid = " + uuid)
+               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញកាលវិភាគ uuid = " + uuid)
 
     IF schedule.status IN (CANCELLED, COMPLETED, DEPARTED) THEN
-        THROW Conflict("មិនអាចប្តូរមគ្គុទ្ទេសក៍លើកាលវិភាគស្ថានភាព " + schedule.status)
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "មិនអាចប្តូរមគ្គុទ្ទេសក៍លើកាលវិភាគស្ថានភាព " + schedule.status)
 
     guide = guideRepo.findByUuidAndIsDeletedFalse(req.guideUuid)
-            ORELSE THROW NotFound("រកមិនឃើញមគ្គុទ្ទេសក៍")
+            ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញមគ្គុទ្ទេសក៍")
 
     IF guide.status != ACTIVE THEN
-        THROW Conflict("មគ្គុទ្ទេសក៍នេះមិនសកម្ម")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "មគ្គុទ្ទេសក៍នេះមិនសកម្ម")
 
     IF scheduleRepo.hasGuideConflict(guide.id, schedule.departureDate,
                                      schedule.returnDate, schedule.id) THEN
-        THROW Conflict("មគ្គុទ្ទេសក៍នេះមានកាលវិភាគជាន់គ្នា")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "មគ្គុទ្ទេសក៍នេះមានកាលវិភាគជាន់គ្នា")
 
     SET schedule.guide = guide
     RETURN toResponseWithSeats(scheduleRepo.save(schedule))
@@ -1148,13 +1148,13 @@ END FUNCTION
 FUNCTION cancel(uuid, req) -> ScheduleResponse:      # @Transactional
 
     schedule = scheduleRepo.findByUuidAndIsDeletedFalse(uuid)
-               ORELSE THROW NotFound("រកមិនឃើញកាលវិភាគ uuid = " + uuid)
+               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញកាលវិភាគ uuid = " + uuid)
 
     IF schedule.status == CANCELLED THEN
-        THROW Conflict("កាលវិភាគនេះត្រូវបានបោះបង់រួចហើយ")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "កាលវិភាគនេះត្រូវបានបោះបង់រួចហើយ")
 
     IF schedule.status IN (DEPARTED, COMPLETED) THEN
-        THROW Conflict("ដំណើរបានចេញ/បញ្ចប់ហើយ មិនអាចបោះបង់បានទេ")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "ដំណើរបានចេញ/បញ្ចប់ហើយ មិនអាចបោះបង់បានទេ")
 
     SET schedule.status       = CANCELLED
     SET schedule.cancelReason = req.reason
@@ -1292,8 +1292,8 @@ REPOSITORY CustomerRepository EXTENDS JpaRepository<Customer, Long>
     existsByPhoneNumber(phone)            -> boolean
     findAllByIsDeletedFalse(pageable)     -> Page<Customer>
 
-    QUERY searchByKeyword(keyword, pageable) -> Page<Customer>
-        SQL: SELECT c FROM Customer c
+    @Query searchByKeyword(keyword, pageable) -> Page<Customer>
+        JPQL: SELECT c FROM Customer c
              WHERE c.isDeleted = false
                AND (LOWER(c.fullName) LIKE %:keyword%
                  OR LOWER(c.email)    LIKE %:keyword%
@@ -1307,22 +1307,22 @@ FUNCTION register(req) -> CustomerResponse:
 
     # ៣. Check Rules — ស្ទួន ៣ ចំណុច
     IF customerRepo.existsByUsername(req.username) THEN
-        THROW Conflict("ឈ្មោះអ្នកប្រើ '" + req.username + "' ត្រូវបានប្រើរួចហើយ")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "ឈ្មោះអ្នកប្រើ '" + req.username + "' ត្រូវបានប្រើរួចហើយ")
 
     IF customerRepo.existsByEmail(req.email) THEN
-        THROW Conflict("អ៊ីមែលនេះត្រូវបានចុះឈ្មោះរួចហើយ")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "អ៊ីមែលនេះត្រូវបានចុះឈ្មោះរួចហើយ")
 
     IF customerRepo.existsByPhoneNumber(req.phoneNumber) THEN
-        THROW Conflict("លេខទូរស័ព្ទនេះត្រូវបានចុះឈ្មោះរួចហើយ")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "លេខទូរស័ព្ទនេះត្រូវបានចុះឈ្មោះរួចហើយ")
 
     # វិន័យអាយុ
     IF req.dateOfBirth IS NOT NULL THEN
         age = yearsBetween(req.dateOfBirth, today())
         IF age < 16 THEN
-            THROW UnprocessableEntity("អ្នកប្រើត្រូវមានអាយុយ៉ាងតិច ១៦ ឆ្នាំ")
+            THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "អ្នកប្រើត្រូវមានអាយុយ៉ាងតិច ១៦ ឆ្នាំ")
 
     # ៥. Build
-    customer = mapper.fromRegisterRequest(req)
+    customer = mapper.toEntity(req)
     SET customer.uuid      = randomUUID()
     SET customer.status    = ACTIVE
     SET customer.isDeleted = false
@@ -1348,7 +1348,7 @@ END FUNCTION
 
 FUNCTION findMe(username) -> CustomerResponse:
     customer = customerRepo.findByUsernameAndIsDeletedFalse(username)
-               ORELSE THROW NotFound("រកមិនឃើញគណនីរបស់អ្នក")
+               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញគណនីរបស់អ្នក")
     RETURN toResponseWithStats(customer)
 END FUNCTION
 
@@ -1356,16 +1356,16 @@ END FUNCTION
 FUNCTION updateMe(username, req) -> CustomerResponse:
 
     customer = customerRepo.findByUsernameAndIsDeletedFalse(username)
-               ORELSE THROW NotFound("រកមិនឃើញគណនីរបស់អ្នក")
+               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញគណនីរបស់អ្នក")
 
     IF customer.status != ACTIVE THEN
-        THROW Forbidden("គណនីរបស់អ្នកស្ថិតក្នុងស្ថានភាព " + customer.status)
+        THROW ResponseStatusException(HttpStatus.FORBIDDEN, "គណនីរបស់អ្នកស្ថិតក្នុងស្ថានភាព " + customer.status)
 
     IF req.phoneNumber IS NOT NULL AND req.phoneNumber != customer.phoneNumber THEN
         IF customerRepo.existsByPhoneNumber(req.phoneNumber) THEN
-            THROW Conflict("លេខទូរស័ព្ទនេះត្រូវបានប្រើរួចហើយ")
+            THROW ResponseStatusException(HttpStatus.CONFLICT, "លេខទូរស័ព្ទនេះត្រូវបានប្រើរួចហើយ")
 
-    mapper.patchFromRequest(req, customer)
+    mapper.toEntity(req, customer)
     RETURN toResponseWithStats(customerRepo.save(customer))
 
 END FUNCTION
@@ -1374,17 +1374,17 @@ END FUNCTION
 FUNCTION changeStatus(uuid, req) -> CustomerResponse:
 
     customer = customerRepo.findByUuidAndIsDeletedFalse(uuid)
-               ORELSE THROW NotFound("រកមិនឃើញអតិថិជន uuid = " + uuid)
+               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញអតិថិជន uuid = " + uuid)
 
     IF customer.status == req.status THEN
-        THROW Conflict("គណនីនេះស្ថិតក្នុងស្ថានភាព " + req.status + " រួចហើយ")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "គណនីនេះស្ថិតក្នុងស្ថានភាព " + req.status + " រួចហើយ")
 
     IF req.status IN (SUSPENDED, BLOCKED) THEN
         active = bookingRepo.countActiveByCustomer(customer.id)
         IF active > 0 THEN
             # មិនហាមទេ តែត្រូវដាក់ហេតុផល
             IF req.reason IS EMPTY THEN
-                THROW BadRequest("ត្រូវបញ្ជាក់ហេតុផល ព្រោះអតិថិជននេះមានការកក់សកម្ម " + active)
+                THROW ResponseStatusException(HttpStatus.BAD_REQUEST, "ត្រូវបញ្ជាក់ហេតុផល ព្រោះអតិថិជននេះមានការកក់សកម្ម " + active)
 
     SET customer.status = req.status
     saved = customerRepo.save(customer)
@@ -1554,28 +1554,28 @@ REPOSITORY BookingRepository EXTENDS JpaRepository<Booking, Long>
     findAllByCustomerUsernameAndStatus(u, status, pageable) -> Page<Booking>
     findByScheduleIdAndStatus(scheduleId, status)        -> List<Booking>
 
-    QUERY countOccupiedSeats(scheduleId) -> int
-        SQL: SELECT COALESCE(SUM(b.numberOfPeople), 0) FROM Booking b
+    @Query countOccupiedSeats(scheduleId) -> int
+        JPQL: SELECT COALESCE(SUM(b.numberOfPeople), 0) FROM Booking b
              WHERE b.schedule.id = :scheduleId
                AND b.status IN ('PENDING','CONFIRMED','COMPLETED')
                AND b.isDeleted = false
 
-    QUERY existsActiveBooking(customerId, scheduleId) -> boolean
-        SQL: SELECT COUNT(b) > 0 FROM Booking b
+    @Query existsActiveBooking(customerId, scheduleId) -> boolean
+        JPQL: SELECT COUNT(b) > 0 FROM Booking b
              WHERE b.customer.id = :customerId
                AND b.schedule.id = :scheduleId
                AND b.status IN ('PENDING','CONFIRMED')
                AND b.isDeleted = false
 
-    QUERY countActiveBookingsByTour(tourId) -> long
-    QUERY countActiveByCustomer(customerId) -> long
-    QUERY findActiveBySchedule(scheduleId)  -> List<Booking>
+    @Query countActiveBookingsByTour(tourId) -> long
+    @Query countActiveByCustomer(customerId) -> long
+    @Query findActiveBySchedule(scheduleId)  -> List<Booking>
 
-    QUERY countTodayBookings() -> long                # សម្រាប់បង្កើត code
-        SQL: SELECT COUNT(b) FROM Booking b WHERE DATE(b.bookedAt) = CURRENT_DATE
+    @Query countTodayBookings() -> long                # សម្រាប់បង្កើត code
+        JPQL: SELECT COUNT(b) FROM Booking b WHERE DATE(b.bookedAt) = CURRENT_DATE
 
-    QUERY findExpiredPending(cutoffTime) -> List<Booking>    # សម្រាប់ auto-cancel
-        SQL: SELECT b FROM Booking b
+    @Query findExpiredPending(cutoffTime) -> List<Booking>    # សម្រាប់ auto-cancel
+        JPQL: SELECT b FROM Booking b
              WHERE b.status = 'PENDING' AND b.bookedAt < :cutoffTime
 ```
 
@@ -1586,50 +1586,50 @@ FUNCTION bookTour(req, username) -> BookingDetailResponse:      # @Transactional
 
     # ═══ ១. VALIDATE ═══
     IF req.passengers.size != req.numberOfPeople THEN
-        THROW BadRequest("ចំនួនអ្នកដំណើរក្នុងបញ្ជី (" + req.passengers.size
+        THROW ResponseStatusException(HttpStatus.BAD_REQUEST, "ចំនួនអ្នកដំណើរក្នុងបញ្ជី (" + req.passengers.size
                        + ") មិនត្រូវនឹង numberOfPeople (" + req.numberOfPeople + ")")     # BR7
 
     leadCount = COUNT p IN req.passengers WHERE p.isLead == true
     IF leadCount != 1 THEN
-        THROW BadRequest("ត្រូវកំណត់អ្នកដំណើរមេ (isLead) ឲ្យបានតែម្នាក់")
+        THROW ResponseStatusException(HttpStatus.BAD_REQUEST, "ត្រូវកំណត់អ្នកដំណើរមេ (isLead) ឲ្យបានតែម្នាក់")
 
     # ═══ ២. LOAD ═══
     customer = customerRepo.findByUsernameAndIsDeletedFalse(username)
-               ORELSE THROW NotFound("រកមិនឃើញគណនីរបស់អ្នក")
+               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញគណនីរបស់អ្នក")
 
     # ចាក់សោជួរ (pessimistic lock) ដើម្បីការពារ race condition ពេលកក់ព្រមគ្នា
     schedule = scheduleRepo.findByUuidForUpdate(req.scheduleUuid)
-               ORELSE THROW NotFound("រកមិនឃើញកាលវិភាគ uuid = " + req.scheduleUuid)
+               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញកាលវិភាគ uuid = " + req.scheduleUuid)
 
     tour = schedule.tour
 
     # ═══ ៣. CHECK RULES ═══
     IF customer.status != ACTIVE THEN                                                    # BR4
-        THROW Forbidden("គណនីរបស់អ្នកមិនអាចធ្វើការកក់បានទេ (" + customer.status + ")")
+        THROW ResponseStatusException(HttpStatus.FORBIDDEN, "គណនីរបស់អ្នកមិនអាចធ្វើការកក់បានទេ (" + customer.status + ")")
 
     IF schedule.status != OPEN THEN                                                      # BR1
-        THROW Conflict("កាលវិភាគនេះមិនបើកទទួលការកក់ទេ (" + schedule.status + ")")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "កាលវិភាគនេះមិនបើកទទួលការកក់ទេ (" + schedule.status + ")")
 
     IF schedule.departureDate IS NOT AFTER today() THEN                                  # BR2
-        THROW Conflict("កាលវិភាគនេះផុតកំណត់ទទួលការកក់ហើយ")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "កាលវិភាគនេះផុតកំណត់ទទួលការកក់ហើយ")
 
     IF bookingRepo.existsActiveBooking(customer.id, schedule.id) THEN                    # BR5
-        THROW Conflict("អ្នកបានកក់កាលវិភាគនេះរួចហើយ")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "អ្នកបានកក់កាលវិភាគនេះរួចហើយ")
 
     IF req.numberOfPeople < tour.minGroupSize THEN                                       # BR6
-        THROW BadRequest("Tour នេះទាមទារយ៉ាងតិច " + tour.minGroupSize + " នាក់")
+        THROW ResponseStatusException(HttpStatus.BAD_REQUEST, "Tour នេះទាមទារយ៉ាងតិច " + tour.minGroupSize + " នាក់")
 
     IF req.numberOfPeople > tour.maxGroupSize THEN                                       # BR6
-        THROW BadRequest("Tour នេះទទួលបានច្រើនបំផុត " + tour.maxGroupSize + " នាក់")
+        THROW ResponseStatusException(HttpStatus.BAD_REQUEST, "Tour នេះទទួលបានច្រើនបំផុត " + tour.maxGroupSize + " នាក់")
 
     bookedSeats    = bookingRepo.countOccupiedSeats(schedule.id)
     availableSeats = schedule.capacity - bookedSeats
 
     IF req.numberOfPeople > availableSeats THEN                                          # BR3
         IF availableSeats == 0 THEN
-            THROW Conflict("កាលវិភាគនេះពេញហើយ")
+            THROW ResponseStatusException(HttpStatus.CONFLICT, "កាលវិភាគនេះពេញហើយ")
         ELSE
-            THROW Conflict("នៅសល់តែ " + availableSeats + " កៅអីប៉ុណ្ណោះ")
+            THROW ResponseStatusException(HttpStatus.CONFLICT, "នៅសល់តែ " + availableSeats + " កៅអីប៉ុណ្ណោះ")
 
     # ═══ ៤. CALCULATE ═══
     unitPrice  = schedule.priceOverride ORELSE tour.price
@@ -1696,23 +1696,23 @@ END FUNCTION
 FUNCTION cancel(code, req, username) -> BookingResponse:        # @Transactional
 
     booking = bookingRepo.findByCodeAndIsDeletedFalse(code)
-              ORELSE THROW NotFound("រកមិនឃើញការកក់លេខ " + code)
+              ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញការកក់លេខ " + code)
 
     # វិន័យសិទ្ធិ
     IF booking.customer.username != username THEN
-        THROW Forbidden("អ្នកមិនមានសិទ្ធិលើការកក់នេះទេ")
+        THROW ResponseStatusException(HttpStatus.FORBIDDEN, "អ្នកមិនមានសិទ្ធិលើការកក់នេះទេ")
 
     # វិន័យស្ថានភាព
     IF booking.status == CANCELLED THEN
-        THROW Conflict("ការកក់នេះត្រូវបានលុបចោលរួចហើយ")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "ការកក់នេះត្រូវបានលុបចោលរួចហើយ")
 
     IF booking.status == COMPLETED THEN
-        THROW Conflict("ដំណើរបានបញ្ចប់ហើយ មិនអាចលុបចោលបានទេ")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "ដំណើរបានបញ្ចប់ហើយ មិនអាចលុបចោលបានទេ")
 
     # វិន័យពេលវេលា                                                                  # BR8
     daysLeft = daysBetween(today(), booking.schedule.departureDate)
     IF daysLeft < 3 THEN
-        THROW Conflict("ត្រូវលុបចោលយ៉ាងតិច ៣ ថ្ងៃមុនចេញដំណើរ (នៅសល់ " + daysLeft + " ថ្ងៃ)")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "ត្រូវលុបចោលយ៉ាងតិច ៣ ថ្ងៃមុនចេញដំណើរ (នៅសល់ " + daysLeft + " ថ្ងៃ)")
 
     # គណនាចំនួនប្រាក់សងវិញ
     refundRate  = calculateRefundRate(daysLeft)
@@ -1755,15 +1755,15 @@ END FUNCTION
 FUNCTION confirm(code) -> BookingResponse:                      # @Transactional [ADMIN]
 
     booking = bookingRepo.findByCodeAndIsDeletedFalse(code)
-              ORELSE THROW NotFound("រកមិនឃើញការកក់លេខ " + code)
+              ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញការកក់លេខ " + code)
 
     IF booking.status != PENDING THEN
-        THROW Conflict("បញ្ជាក់បានតែការកក់ស្ថានភាព PENDING (បច្ចុប្បន្ន " + booking.status + ")")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "បញ្ជាក់បានតែការកក់ស្ថានភាព PENDING (បច្ចុប្បន្ន " + booking.status + ")")
 
     # វិន័យទូទាត់                                                                    # BR9
     minimumRequired = booking.totalPrice * 0.50
     IF booking.paidAmount < minimumRequired THEN
-        THROW UnprocessableEntity(
+        THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, 
             "ត្រូវបង់យ៉ាងតិច ៥០% (" + minimumRequired + ") មុនបញ្ជាក់ — បង់រួច " + booking.paidAmount)
 
     SET booking.status      = CONFIRMED
@@ -1792,10 +1792,10 @@ END FUNCTION
 FUNCTION findByCode(code, username, isAdmin) -> BookingDetailResponse:
 
     booking = bookingRepo.findByCodeAndIsDeletedFalse(code)
-              ORELSE THROW NotFound("រកមិនឃើញការកក់លេខ " + code)
+              ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញការកក់លេខ " + code)
 
     IF isAdmin == false AND booking.customer.username != username THEN
-        THROW Forbidden("អ្នកមិនមានសិទ្ធិមើលការកក់នេះទេ")
+        THROW ResponseStatusException(HttpStatus.FORBIDDEN, "អ្នកមិនមានសិទ្ធិមើលការកក់នេះទេ")
 
     RETURN mapper.toDetailResponse(booking)
 
@@ -1805,16 +1805,16 @@ END FUNCTION
 FUNCTION updatePassengers(code, req, username) -> BookingDetailResponse:   # @Transactional
 
     booking = bookingRepo.findByCodeAndIsDeletedFalse(code)
-              ORELSE THROW NotFound("រកមិនឃើញការកក់លេខ " + code)
+              ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញការកក់លេខ " + code)
 
     IF booking.customer.username != username THEN
-        THROW Forbidden("អ្នកមិនមានសិទ្ធិលើការកក់នេះទេ")
+        THROW ResponseStatusException(HttpStatus.FORBIDDEN, "អ្នកមិនមានសិទ្ធិលើការកក់នេះទេ")
 
     IF booking.status != PENDING THEN
-        THROW Conflict("កែចំនួនអ្នកដំណើរបានតែពេលការកក់នៅ PENDING")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "កែចំនួនអ្នកដំណើរបានតែពេលការកក់នៅ PENDING")
 
     IF req.passengers.size != req.numberOfPeople THEN
-        THROW BadRequest("ចំនួនអ្នកដំណើរក្នុងបញ្ជីមិនត្រូវគ្នា")
+        THROW ResponseStatusException(HttpStatus.BAD_REQUEST, "ចំនួនអ្នកដំណើរក្នុងបញ្ជីមិនត្រូវគ្នា")
 
     # ពិនិត្យកៅអី — កាត់ចេញនូវការកក់បច្ចុប្បន្ន
     schedule  = booking.schedule
@@ -1822,7 +1822,7 @@ FUNCTION updatePassengers(code, req, username) -> BookingDetailResponse:   # @Tr
     available = schedule.capacity - occupied
 
     IF req.numberOfPeople > available THEN
-        THROW Conflict("នៅសល់តែ " + available + " កៅអី")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "នៅសល់តែ " + available + " កៅអី")
 
     # គណនាតម្លៃឡើងវិញ
     SET booking.numberOfPeople = req.numberOfPeople
@@ -1998,33 +1998,33 @@ REPOSITORY PaymentRepository EXTENDS JpaRepository<Payment, Long>
     findAllByBookingIdOrderByCreatedAtDesc(bookingId) -> List<Payment>
     existsByTransactionId(txId)             -> boolean
 
-    QUERY sumVerifiedAmount(bookingId) -> BigDecimal
-        SQL: SELECT COALESCE(SUM(p.amount), 0) FROM Payment p
+    @Query sumVerifiedAmount(bookingId) -> BigDecimal
+        JPQL: SELECT COALESCE(SUM(p.amount), 0) FROM Payment p
              WHERE p.booking.id = :bookingId
                AND p.status = 'VERIFIED' AND p.type <> 'REFUND'
                AND p.isDeleted = false
 
-    QUERY sumPendingAmount(bookingId) -> BigDecimal
-    QUERY sumRefundedAmount(bookingId) -> BigDecimal
-        SQL: SELECT COALESCE(SUM(p.amount), 0) FROM Payment p
+    @Query sumPendingAmount(bookingId) -> BigDecimal
+    @Query sumRefundedAmount(bookingId) -> BigDecimal
+        JPQL: SELECT COALESCE(SUM(p.amount), 0) FROM Payment p
              WHERE p.booking.id = :bookingId
                AND p.type = 'REFUND' AND p.status IN ('VERIFIED','REFUNDED')
 
-    QUERY revenueBetween(from, to) -> BigDecimal
-        SQL: SELECT COALESCE(SUM(p.amount), 0) FROM Payment p
+    @Query revenueBetween(from, to) -> BigDecimal
+        JPQL: SELECT COALESCE(SUM(p.amount), 0) FROM Payment p
              WHERE p.status = 'VERIFIED' AND p.type <> 'REFUND'
                AND p.isDeleted = false
                AND DATE(p.paidAt) BETWEEN :from AND :to
 
-    QUERY refundedBetween(from, to) -> BigDecimal
-        SQL: SELECT COALESCE(SUM(p.amount), 0) FROM Payment p
+    @Query refundedBetween(from, to) -> BigDecimal
+        JPQL: SELECT COALESCE(SUM(p.amount), 0) FROM Payment p
              WHERE p.type = 'REFUND' AND p.status IN ('VERIFIED','REFUNDED')
                AND p.isDeleted = false
                AND DATE(p.paidAt) BETWEEN :from AND :to
 
-    QUERY countBetween(from, to)    -> long
-    QUERY revenueByMethod(from, to) -> List<Object[]>   # [method, sum]
-    QUERY countTodayPayments() -> long
+    @Query countBetween(from, to)    -> long
+    @Query revenueByMethod(from, to) -> List<Object[]>   # [method, sum]
+    @Query countTodayPayments() -> long
 ```
 
 ## F8.6 Service — UC8.1 បង់ប្រាក់
@@ -2034,27 +2034,27 @@ FUNCTION pay(bookingCode, req, username) -> PaymentResponse:    # @Transactional
 
     # ═══ ២. LOAD ═══
     booking = bookingRepo.findByCodeAndIsDeletedFalse(bookingCode)
-              ORELSE THROW NotFound("រកមិនឃើញការកក់លេខ " + bookingCode)
+              ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញការកក់លេខ " + bookingCode)
 
     # ═══ ៣. CHECK RULES ═══
     IF booking.customer.username != username THEN
-        THROW Forbidden("អ្នកមិនមានសិទ្ធិទូទាត់លើការកក់នេះទេ")
+        THROW ResponseStatusException(HttpStatus.FORBIDDEN, "អ្នកមិនមានសិទ្ធិទូទាត់លើការកក់នេះទេ")
 
     IF booking.status == CANCELLED THEN                                        # BR2
-        THROW Conflict("ការកក់នេះត្រូវបានលុបចោលហើយ")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "ការកក់នេះត្រូវបានលុបចោលហើយ")
 
     IF booking.status == COMPLETED THEN                                        # BR2
-        THROW Conflict("ដំណើរបានបញ្ចប់ហើយ")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "ដំណើរបានបញ្ចប់ហើយ")
 
     IF req.type == REFUND THEN
-        THROW BadRequest("សូមប្រើ endpoint សងប្រាក់វិញជំនួស")
+        THROW ResponseStatusException(HttpStatus.BAD_REQUEST, "សូមប្រើ endpoint សងប្រាក់វិញជំនួស")
 
     IF req.method == BANK_TRANSFER AND req.receiptUrl IS EMPTY THEN            # BR5
-        THROW BadRequest("ការផ្ទេរតាមធនាគារត្រូវភ្ជាប់រូបភាពវិក្កយបត្រ")
+        THROW ResponseStatusException(HttpStatus.BAD_REQUEST, "ការផ្ទេរតាមធនាគារត្រូវភ្ជាប់រូបភាពវិក្កយបត្រ")
 
     IF req.transactionId IS NOT NULL
        AND paymentRepo.existsByTransactionId(req.transactionId) THEN
-        THROW Conflict("លេខប្រតិបត្តិការនេះត្រូវបានប្រើរួចហើយ")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "លេខប្រតិបត្តិការនេះត្រូវបានប្រើរួចហើយ")
 
     # ═══ ៤. CALCULATE ═══
     verified  = paymentRepo.sumVerifiedAmount(booking.id)
@@ -2064,19 +2064,19 @@ FUNCTION pay(bookingCode, req, username) -> PaymentResponse:    # @Transactional
     remaining = booking.totalPrice - committed
 
     IF remaining <= 0 THEN
-        THROW Conflict("ការកក់នេះបានទូទាត់គ្រប់ចំនួនរួចហើយ")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "ការកក់នេះបានទូទាត់គ្រប់ចំនួនរួចហើយ")
 
     IF req.amount > remaining THEN                                             # BR3
-        THROW UnprocessableEntity(
+        THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, 
             "ទឹកប្រាក់លើសចំនួនដែលនៅសល់ — នៅសល់ត្រូវបង់ " + remaining)
 
     IF req.type == DEPOSIT THEN                                                # BR4
         minDeposit = booking.totalPrice * 0.30
         IF req.amount < minDeposit THEN
-            THROW UnprocessableEntity("ប្រាក់កក់ត្រូវយ៉ាងតិច ៣០% (" + minDeposit + ")")
+            THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "ប្រាក់កក់ត្រូវយ៉ាងតិច ៣០% (" + minDeposit + ")")
 
     IF req.type == FULL_PAYMENT AND req.amount != remaining THEN
-        THROW UnprocessableEntity("FULL_PAYMENT ត្រូវស្មើនឹងចំនួននៅសល់ (" + remaining + ")")
+        THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "FULL_PAYMENT ត្រូវស្មើនឹងចំនួននៅសល់ (" + remaining + ")")
 
     # ═══ ៥. BUILD ═══
     payment = NEW Payment
@@ -2147,10 +2147,10 @@ END FUNCTION
 FUNCTION verify(referenceNo, adminUsername) -> PaymentResponse:   # @Transactional [ADMIN]
 
     payment = paymentRepo.findByReferenceNoAndIsDeletedFalse(referenceNo)
-              ORELSE THROW NotFound("រកមិនឃើញការទូទាត់លេខ " + referenceNo)
+              ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញការទូទាត់លេខ " + referenceNo)
 
     IF payment.status != PENDING THEN                                          # BR6
-        THROW Conflict("បញ្ជាក់បានតែការទូទាត់ស្ថានភាព PENDING (បច្ចុប្បន្ន "
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "បញ្ជាក់បានតែការទូទាត់ស្ថានភាព PENDING (បច្ចុប្បន្ន "
                      + payment.status + ")")
 
     SET payment.status     = VERIFIED
@@ -2169,10 +2169,10 @@ END FUNCTION
 FUNCTION reject(referenceNo, req, adminUsername) -> PaymentResponse:   # [ADMIN]
 
     payment = paymentRepo.findByReferenceNoAndIsDeletedFalse(referenceNo)
-              ORELSE THROW NotFound("រកមិនឃើញការទូទាត់លេខ " + referenceNo)
+              ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញការទូទាត់លេខ " + referenceNo)
 
     IF payment.status != PENDING THEN
-        THROW Conflict("បដិសេធបានតែការទូទាត់ស្ថានភាព PENDING")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "បដិសេធបានតែការទូទាត់ស្ថានភាព PENDING")
 
     SET payment.status       = REJECTED
     SET payment.rejectReason = req.reason
@@ -2194,7 +2194,7 @@ FUNCTION createRefund(booking, amount, reason) -> PaymentResponse:   # @Transact
     maxRefundable = verified - refunded
 
     IF amount > maxRefundable THEN                                             # BR7
-        THROW UnprocessableEntity("សងវិញបានច្រើនបំផុត " + maxRefundable)
+        THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "សងវិញបានច្រើនបំផុត " + maxRefundable)
 
     refund = NEW Payment
     SET refund.uuid        = randomUUID()
@@ -2232,10 +2232,10 @@ END FUNCTION
 FUNCTION getSummary(bookingCode, username, isAdmin) -> PaymentSummaryResponse:
 
     booking = bookingRepo.findByCodeAndIsDeletedFalse(bookingCode)
-              ORELSE THROW NotFound("រកមិនឃើញការកក់លេខ " + bookingCode)
+              ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញការកក់លេខ " + bookingCode)
 
     IF isAdmin == false AND booking.customer.username != username THEN
-        THROW Forbidden("អ្នកមិនមានសិទ្ធិមើលការទូទាត់នេះទេ")
+        THROW ResponseStatusException(HttpStatus.FORBIDDEN, "អ្នកមិនមានសិទ្ធិមើលការទូទាត់នេះទេ")
 
     verified = paymentRepo.sumVerifiedAmount(booking.id)
     pending  = paymentRepo.sumPendingAmount(booking.id)
@@ -2262,7 +2262,7 @@ FUNCTION getRevenueReport(fromDate, toDate) -> RevenueReportResponse:   # [ADMIN
     IF toDate   IS NULL THEN SET toDate   = today()
 
     IF toDate IS BEFORE fromDate THEN
-        THROW BadRequest("toDate ត្រូវក្រោយ fromDate")
+        THROW ResponseStatusException(HttpStatus.BAD_REQUEST, "toDate ត្រូវក្រោយ fromDate")
 
     report = NEW RevenueReportResponse
     SET report.fromDate      = fromDate
@@ -2392,31 +2392,31 @@ REPOSITORY ReviewRepository EXTENDS JpaRepository<Review, Long>
     existsByBookingId(bookingId)       -> boolean
     findByBookingId(bookingId)         -> Optional<Review>
 
-    QUERY findVisibleByTour(tourId, pageable) -> Page<Review>
-        SQL: SELECT r FROM Review r
+    @Query findVisibleByTour(tourId, pageable) -> Page<Review>
+        JPQL: SELECT r FROM Review r
              WHERE r.tour.id = :tourId AND r.isVisible = true AND r.isDeleted = false
              ORDER BY r.createdAt DESC
 
-    QUERY findTop5ByTour(tourId) -> List<Review>
+    @Query findTop5ByTour(tourId) -> List<Review>
 
-    QUERY averageRating(tourId) -> Double
-        SQL: SELECT COALESCE(AVG(r.rating), 0) FROM Review r
+    @Query averageRating(tourId) -> Double
+        JPQL: SELECT COALESCE(AVG(r.rating), 0) FROM Review r
              WHERE r.tour.id = :tourId AND r.isVisible = true AND r.isDeleted = false
 
-    QUERY averageGuideRating(tourId) -> Double
-        SQL: SELECT COALESCE(AVG(r.guideRating), 0) FROM Review r
+    @Query averageGuideRating(tourId) -> Double
+        JPQL: SELECT COALESCE(AVG(r.guideRating), 0) FROM Review r
              WHERE r.tour.id = :tourId AND r.guideRating IS NOT NULL
                AND r.isVisible = true AND r.isDeleted = false
 
-    QUERY averageValueRating(tourId) -> Double
-        SQL: SELECT COALESCE(AVG(r.valueRating), 0) FROM Review r
+    @Query averageValueRating(tourId) -> Double
+        JPQL: SELECT COALESCE(AVG(r.valueRating), 0) FROM Review r
              WHERE r.tour.id = :tourId AND r.valueRating IS NOT NULL
                AND r.isVisible = true AND r.isDeleted = false
 
-    QUERY countVisibleByTour(tourId) -> long
+    @Query countVisibleByTour(tourId) -> long
 
-    QUERY countByStars(tourId) -> List<Object[]>          # [rating, count]
-        SQL: SELECT r.rating, COUNT(r) FROM Review r
+    @Query countByStars(tourId) -> List<Object[]>          # [rating, count]
+        JPQL: SELECT r.rating, COUNT(r) FROM Review r
              WHERE r.tour.id = :tourId AND r.isVisible = true AND r.isDeleted = false
              GROUP BY r.rating
 ```
@@ -2424,29 +2424,29 @@ REPOSITORY ReviewRepository EXTENDS JpaRepository<Review, Long>
 ## F9.6 Service
 
 ```
-FUNCTION create(bookingCode, req, username) -> ReviewResponse:      # @Transactional
+FUNCTION createNew(bookingCode, req, username) -> ReviewResponse:      # @Transactional
 
     # ═══ ២. LOAD ═══
     booking = bookingRepo.findByCodeAndIsDeletedFalse(bookingCode)
-              ORELSE THROW NotFound("រកមិនឃើញការកក់លេខ " + bookingCode)
+              ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញការកក់លេខ " + bookingCode)
 
     # ═══ ៣. CHECK RULES ═══
     IF booking.customer.username != username THEN                              # BR2
-        THROW Forbidden("អ្នកមិនមែនជាម្ចាស់ការកក់នេះទេ")
+        THROW ResponseStatusException(HttpStatus.FORBIDDEN, "អ្នកមិនមែនជាម្ចាស់ការកក់នេះទេ")
 
     IF booking.status != COMPLETED THEN                                        # BR1
-        THROW Conflict("វាយតម្លៃបានតែក្រោយពេលដំណើរបញ្ចប់ (បច្ចុប្បន្ន "
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "វាយតម្លៃបានតែក្រោយពេលដំណើរបញ្ចប់ (បច្ចុប្បន្ន "
                      + booking.status + ")")
 
     IF reviewRepo.existsByBookingId(booking.id) THEN                           # BR3
-        THROW Conflict("អ្នកបានវាយតម្លៃការកក់នេះរួចហើយ")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "អ្នកបានវាយតម្លៃការកក់នេះរួចហើយ")
 
     daysSinceReturn = daysBetween(booking.schedule.returnDate, today())
     IF daysSinceReturn > 60 THEN                                               # BR5
-        THROW Conflict("រយៈពេលវាយតម្លៃផុតកំណត់ហើយ (អនុញ្ញាតក្នុង ៦០ ថ្ងៃ)")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "រយៈពេលវាយតម្លៃផុតកំណត់ហើយ (អនុញ្ញាតក្នុង ៦០ ថ្ងៃ)")
 
     # ═══ ៥. BUILD ═══
-    review = mapper.fromCreateRequest(req)
+    review = mapper.toEntity(req)
     SET review.uuid      = randomUUID()
     SET review.booking   = booking
     SET review.tour      = booking.schedule.tour
@@ -2474,24 +2474,24 @@ FUNCTION recalculateTourRating(tourId) -> void:
 END FUNCTION
 
 
-FUNCTION update(uuid, req, username) -> ReviewResponse:             # @Transactional
+FUNCTION updateByUuid(uuid, req, username) -> ReviewResponse:             # @Transactional
 
     review = reviewRepo.findByUuidAndIsDeletedFalse(uuid)
-             ORELSE THROW NotFound("រកមិនឃើញការវាយតម្លៃ uuid = " + uuid)
+             ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញការវាយតម្លៃ uuid = " + uuid)
 
     IF review.customer.username != username THEN
-        THROW Forbidden("អ្នកមិនមានសិទ្ធិកែការវាយតម្លៃនេះទេ")
+        THROW ResponseStatusException(HttpStatus.FORBIDDEN, "អ្នកមិនមានសិទ្ធិកែការវាយតម្លៃនេះទេ")
 
     daysSinceCreated = daysBetween(review.createdAt.toLocalDate(), today())
     IF daysSinceCreated > 7 THEN                                               # BR6
-        THROW Conflict("កែបានក្នុងរយៈពេល ៧ ថ្ងៃបន្ទាប់ពីបង្កើតតែប៉ុណ្ណោះ")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "កែបានក្នុងរយៈពេល ៧ ថ្ងៃបន្ទាប់ពីបង្កើតតែប៉ុណ្ណោះ")
 
     IF review.isVisible == false THEN
-        THROW Conflict("ការវាយតម្លៃនេះត្រូវបានលាក់ដោយអ្នកគ្រប់គ្រង")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "ការវាយតម្លៃនេះត្រូវបានលាក់ដោយអ្នកគ្រប់គ្រង")
 
     ratingChanged = (req.rating IS NOT NULL AND req.rating != review.rating)
 
-    mapper.patchFromRequest(req, review)
+    mapper.toEntity(req, review)
     saved = reviewRepo.save(review)
 
     IF ratingChanged THEN
@@ -2502,13 +2502,13 @@ FUNCTION update(uuid, req, username) -> ReviewResponse:             # @Transacti
 END FUNCTION
 
 
-FUNCTION delete(uuid, username) -> void:                            # @Transactional
+FUNCTION deleteByUuid(uuid, username) -> void:                            # @Transactional
 
     review = reviewRepo.findByUuidAndIsDeletedFalse(uuid)
-             ORELSE THROW NotFound("រកមិនឃើញការវាយតម្លៃ uuid = " + uuid)
+             ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញការវាយតម្លៃ uuid = " + uuid)
 
     IF review.customer.username != username THEN
-        THROW Forbidden("អ្នកមិនមានសិទ្ធិលុបការវាយតម្លៃនេះទេ")
+        THROW ResponseStatusException(HttpStatus.FORBIDDEN, "អ្នកមិនមានសិទ្ធិលុបការវាយតម្លៃនេះទេ")
 
     SET review.isDeleted = true
     reviewRepo.save(review)
@@ -2521,10 +2521,10 @@ END FUNCTION
 FUNCTION hide(uuid, req, adminUsername) -> ReviewResponse:          # [ADMIN]
 
     review = reviewRepo.findByUuidAndIsDeletedFalse(uuid)
-             ORELSE THROW NotFound("រកមិនឃើញការវាយតម្លៃ uuid = " + uuid)
+             ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញការវាយតម្លៃ uuid = " + uuid)
 
     IF review.isVisible == false THEN
-        THROW Conflict("ការវាយតម្លៃនេះត្រូវបានលាក់រួចហើយ")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "ការវាយតម្លៃនេះត្រូវបានលាក់រួចហើយ")
 
     SET review.isVisible    = false
     SET review.hiddenReason = req.reason
@@ -2540,10 +2540,10 @@ END FUNCTION
 FUNCTION reply(uuid, req, adminUsername) -> ReviewResponse:         # [ADMIN]
 
     review = reviewRepo.findByUuidAndIsDeletedFalse(uuid)
-             ORELSE THROW NotFound("រកមិនឃើញការវាយតម្លៃ uuid = " + uuid)
+             ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញការវាយតម្លៃ uuid = " + uuid)
 
     IF review.adminReply IS NOT EMPTY THEN
-        THROW Conflict("ការវាយតម្លៃនេះមានការឆ្លើយតបរួចហើយ — សូមប្រើ PATCH ដើម្បីកែ")
+        THROW ResponseStatusException(HttpStatus.CONFLICT, "ការវាយតម្លៃនេះមានការឆ្លើយតបរួចហើយ — សូមប្រើ PATCH ដើម្បីកែ")
 
     SET review.adminReply = req.reply
     SET review.repliedAt  = now()
@@ -2560,7 +2560,7 @@ END FUNCTION
 FUNCTION findByTour(tourUuid, page, size) -> PageResponse<ReviewResponse>:
 
     tour = tourRepo.findByUuidAndIsDeletedFalse(tourUuid)
-           ORELSE THROW NotFound("រកមិនឃើញ Tour uuid = " + tourUuid)
+           ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញ Tour uuid = " + tourUuid)
 
     pageable = buildPageable(page, size, "createdAt", DESC)
     result   = reviewRepo.findVisibleByTour(tour.id, pageable)
@@ -2573,7 +2573,7 @@ END FUNCTION
 FUNCTION getSummary(tourUuid) -> ReviewSummaryResponse:
 
     tour = tourRepo.findByUuidAndIsDeletedFalse(tourUuid)
-           ORELSE THROW NotFound("រកមិនឃើញ Tour uuid = " + tourUuid)
+           ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញ Tour uuid = " + tourUuid)
 
     rows  = reviewRepo.countByStars(tour.id)      # [[5,120],[4,45],...]
     total = SUM of counts IN rows
@@ -2634,7 +2634,7 @@ DTO ApiErrorResponse:
     path       : String
     fieldErrors: Map<String, String>       # សម្រាប់ validation
 
-HANDLER GlobalExceptionHandler:            # @RestControllerAdvice
+HANDLER GlobalAppException:            # @RestControllerAdvice
 
     ON MethodArgumentNotValidException -> 400
         fieldErrors = COLLECT (field -> message) FROM ex.bindingResult
@@ -2663,7 +2663,7 @@ HANDLER GlobalExceptionHandler:            # @RestControllerAdvice
 ## X.2 Utils
 
 ```
-UTIL CodeGenerator:
+UTIL GenerateUtils:
 
     FUNCTION randomUUID() -> String
         RETURN UUID.randomUUID().toString()
@@ -2712,7 +2712,7 @@ CONFIG SecurityConfig:
 
 UTIL AuthUtils:
     FUNCTION currentUsername(auth) -> String
-        IF auth IS NULL THEN THROW Unauthorized("សូម login សិន")
+        IF auth IS NULL THEN THROW ResponseStatusException(HttpStatus.UNAUTHORIZED, "សូម login សិន")
         RETURN auth.getName()
 
     FUNCTION isAdmin(auth) -> boolean
@@ -2727,8 +2727,8 @@ UTIL AuthUtils:
 ដំណាក់កាល ១ — គ្រឹះ
   [1] base/BaseEntity, PageResponse, PageMapper
   [2] config/JpaAuditingConfig
-  [3] exception/ApiErrorResponse, GlobalExceptionHandler
-  [4] utils/CodeGenerator, DateUtils
+  [3] exception/ApiErrorResponse, GlobalAppException
+  [4] utils/GenerateUtils, DateUtils
 
 ដំណាក់កាល ២ — Master Data (គ្មានការពឹងផ្អែក)
   [5] F1 Category
