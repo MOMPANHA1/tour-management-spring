@@ -19,19 +19,38 @@ repositories {
 }
 
 dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1'
+
+    // ===== Web / Persistence =====
     implementation 'org.springframework.boot:spring-boot-starter-webmvc'
-    compileOnly 'org.projectlombok:lombok'
-    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
     runtimeOnly 'org.postgresql:postgresql'
+
+    // ===== Validation — @Valid, @NotBlank, @Email, @Min, @DecimalMin =====
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // ===== API Docs — OpenApiConfig, /swagger-ui.html =====
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1'
+
+    // ===== Lombok + MapStruct =====
+    // លំដាប់ annotationProcessor សំខាន់៖ lombok -> binding -> mapstruct
+    compileOnly 'org.projectlombok:lombok'
+    compileOnly 'org.mapstruct:mapstruct:1.6.3'
     annotationProcessor 'org.projectlombok:lombok'
-    testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
+    annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
+    annotationProcessor 'org.mapstruct:mapstruct-processor:1.6.3'
+
+    // ===== Dev =====
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+
+    // ===== Test =====
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+    testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
     testCompileOnly 'org.projectlombok:lombok'
-    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     testAnnotationProcessor 'org.projectlombok:lombok'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
+
+tasks.withType(JavaCompile).configureEach { options.compilerArgs << "-Xlint:deprecation" }
 
 tasks.named('test') {
     useJUnitPlatform()
