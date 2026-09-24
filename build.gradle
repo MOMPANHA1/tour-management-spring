@@ -28,6 +28,13 @@ dependencies {
     // ===== Validation — @Valid, @NotBlank, @Email, @Min, @DecimalMin =====
     implementation 'org.springframework.boot:spring-boot-starter-validation'
 
+    // ===== Security — SecurityConfig, JWT ពី Keycloak =====
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-security-oauth2-resource-server'
+
+    // Keycloak Admin Client — បង្កើត user ពី backend (F6 Customer register)
+    implementation 'org.keycloak:keycloak-admin-client:26.0.12'
+
     // ===== API Docs — OpenApiConfig, /swagger-ui.html =====
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.1.1'
 
@@ -45,6 +52,7 @@ dependencies {
     // ===== Test =====
     testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
     testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
+    testImplementation 'org.springframework.security:spring-security-test'
     testCompileOnly 'org.projectlombok:lombok'
     testAnnotationProcessor 'org.projectlombok:lombok'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

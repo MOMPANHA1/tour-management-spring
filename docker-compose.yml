@@ -15,5 +15,50 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  # Database ដាច់ដោយឡែកសម្រាប់ Keycloak។
+  #
+  # មិនប្រើ database ទី ២ ក្នុង container `postgres` ខាងលើទេ ព្រោះ volume `postgres_data`
+  # ត្រូវបាន initialize រួចហើយ — script ក្នុង /docker-entrypoint-initdb.d/ នឹងមិនរត់ទៀតទេ។
+  keycloak-postgres:
+    image: postgres:16
+    container_name: panha-keycloak-db
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak
+
+    volumes:
+      - keycloak_postgres_data:/var/lib/postgresql/data
+
+  # Keycloak — ប្រព័ន្ធផ្ទៀងផ្ទាត់អត្តសញ្ញាណ (Identity Provider)។
+  #
+  # `start-dev` សម្រាប់ការអភិវឌ្ឍតែប៉ុណ្ណោះ — បិទ HTTPS និងបើក Admin Console ដោយសេរី។
+  # ពេលដាក់ production ត្រូវប្តូរទៅ `start` ជាមួយ KC_HOSTNAME និង certificate។
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: panha-keycloak
+    restart: unless-stopped
+    command: start-dev
+
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak
+
+      KC_HEALTH_ENABLED: "true"
+
+    ports:
+      - "1001:8080"
+
+    depends_on:
+      - keycloak-postgres
+
 volumes:
   postgres_data:
+  keycloak_postgres_data:
