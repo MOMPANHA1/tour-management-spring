@@ -12,7 +12,7 @@ import java.util.Optional;
 @Repository
 public interface GuideRepository extends JpaRepository<Guide, Long> {
 
-    Optional<Guide> findByUuidAndIsDeletedFalse(String uuid);
+    Optional<Guide> findByIdAndIsDeletedFalse(Long id);
 
     /**
      * ពិនិត្យលេខទូរស័ព្ទ <b>ដោយមិនច្រោះ {@code isDeleted}</b>។

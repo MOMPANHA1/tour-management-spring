@@ -41,7 +41,6 @@ public class DestinationServiceImpl implements DestinationService {
         requireCoordinatePair(request.latitude(), request.longitude());
 
         Destination destination = destinationMapper.toEntity(request);
-        destination.setUuid(GenerateUtils.randomUUID());
         destination.setCountry(defaultCountry(request.country()));
         destination.setIsDeleted(false);
 
@@ -61,16 +60,16 @@ public class DestinationServiceImpl implements DestinationService {
     }
 
     @Override
-    public DestinationResponse findByUuid(String uuid) {
+    public DestinationResponse findById(Long id) {
         // TODO ដំណាក់កាល ៣ (F4 Tour)៖ ប្តូរទៅ DestinationDetailResponse ដែលផ្ទុក tours : List<TourCardResponse>
-        return toResponse(loadByUuid(uuid));
+        return toResponse(loadById(id));
     }
 
     @Override
     @Transactional
-    public DestinationResponse updateByUuid(String uuid, UpdateDestinationRequest request) {
+    public DestinationResponse updateById(Long id, UpdateDestinationRequest request) {
 
-        Destination destination = loadByUuid(uuid);
+        Destination destination = loadById(id);
 
         // ពិនិត្យស្ទួន — តែបើ name ឬ province ពិតជាប្តូរ
         String newName = (request.name() != null) ? request.name() : destination.getName();
@@ -96,9 +95,9 @@ public class DestinationServiceImpl implements DestinationService {
 
     @Override
     @Transactional
-    public void deleteByUuid(String uuid) {
+    public void deleteById(Long id) {
 
-        Destination destination = loadByUuid(uuid);
+        Destination destination = loadById(id);
 
         // វិន័យ៖ លុបមិនបានបើនៅមាន Tour ភ្ជាប់នឹងទីតាំងនេះ
         long activeTours = tourRepository.countActiveByDestination(destination.getId());
@@ -113,10 +112,10 @@ public class DestinationServiceImpl implements DestinationService {
 
     // ---------- ជំនួយខាងក្នុង ----------
 
-    private Destination loadByUuid(String uuid) {
-        return destinationRepository.findByUuidAndIsDeletedFalse(uuid)
+    private Destination loadById(Long id) {
+        return destinationRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "រកមិនឃើញទីតាំង uuid = " + uuid));
+                        "រកមិនឃើញទីតាំង id = " + id));
     }
 
     /** កូអរដោនេត្រូវមានទាំងគូ ឬទទេទាំងគូ — ចំណុចតែមួយគ្មានន័យលើផែនទី។ */

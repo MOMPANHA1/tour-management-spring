@@ -50,23 +50,22 @@ public class ScheduleServiceImpl implements ScheduleService {
         requireDateOrder(request.departureDate(), request.returnDate());
 
         // ２. Load
-        Tour tour = tourRepository.findByUuidAndIsDeletedFalse(request.tourUuid())
+        Tour tour = tourRepository.findByIdAndIsDeletedFalse(request.tourId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "រកមិនឃើញ Tour uuid = " + request.tourUuid()));
+                        "រកមិនឃើញ Tour id = " + request.tourId()));
 
         // ៣. Check Rules
         requireDurationMatchesTour(request.departureDate(), request.returnDate(), tour);
         requireCapacityWithinTourLimits(request.capacity(), tour);
 
         Guide guide = null;
-        if (request.guideUuid() != null && !request.guideUuid().isBlank()) {
-            guide = loadActiveGuide(request.guideUuid());
+        if (request.guideId() != null) {
+            guide = loadActiveGuide(request.guideId());
             requireGuideFree(guide, request.departureDate(), request.returnDate(), null);
         }
 
         // ５. Build
         TourSchedule schedule = new TourSchedule();
-        schedule.setUuid(GenerateUtils.randomUUID());
         schedule.setCode(nextScheduleCode(request.departureDate()));
         schedule.setTour(tour);
         schedule.setGuide(guide);
@@ -83,11 +82,11 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     @Override
-    public List<ScheduleResponse> findByTour(String tourUuid, LocalDate fromDate) {
+    public List<ScheduleResponse> findByTour(Long tourId, LocalDate fromDate) {
 
-        Tour tour = tourRepository.findByUuidAndIsDeletedFalse(tourUuid)
+        Tour tour = tourRepository.findByIdAndIsDeletedFalse(tourId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "រកមិនឃើញ Tour uuid = " + tourUuid));
+                        "រកមិនឃើញ Tour id = " + tourId));
 
         LocalDate from = (fromDate != null) ? fromDate : LocalDate.now();
 
@@ -97,15 +96,15 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     @Override
-    public ScheduleResponse findByUuid(String uuid) {
-        return toResponseWithSeats(loadByUuid(uuid));
+    public ScheduleResponse findById(Long id) {
+        return toResponseWithSeats(loadById(id));
     }
 
     @Override
     @Transactional
-    public ScheduleResponse updateByUuid(String uuid, UpdateScheduleRequest request) {
+    public ScheduleResponse updateById(Long id, UpdateScheduleRequest request) {
 
-        TourSchedule schedule = loadByUuid(uuid);
+        TourSchedule schedule = loadById(id);
         requireEditable(schedule);
 
         LocalDate finalDeparture = (request.departureDate() != null)
@@ -155,16 +154,16 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     @Override
     @Transactional
-    public ScheduleResponse assignGuide(String uuid, AssignGuideRequest request) {
+    public ScheduleResponse assignGuide(Long id, AssignGuideRequest request) {
 
-        TourSchedule schedule = loadByUuid(uuid);
+        TourSchedule schedule = loadById(id);
 
         if (LOCKED_STATUSES.contains(schedule.getStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "មិនអាចប្តូរមគ្គុទ្ទេសក៍លើកាលវិភាគស្ថានភាព " + schedule.getStatus());
         }
 
-        Guide guide = loadActiveGuide(request.guideUuid());
+        Guide guide = loadActiveGuide(request.guideId());
         requireGuideFree(guide, schedule.getDepartureDate(), schedule.getReturnDate(), schedule.getId());
 
         schedule.setGuide(guide);
@@ -174,9 +173,9 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     @Override
     @Transactional
-    public ScheduleResponse cancel(String uuid, CancelScheduleRequest request) {
+    public ScheduleResponse cancel(Long id, CancelScheduleRequest request) {
 
-        TourSchedule schedule = loadByUuid(uuid);
+        TourSchedule schedule = loadById(id);
 
         if (schedule.getStatus() == ScheduleStatus.CANCELLED) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "កាលវិភាគនេះត្រូវបានបោះបង់រួចហើយ");
@@ -246,16 +245,16 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     // ---------- ជំនួយខាងក្នុង ----------
 
-    private TourSchedule loadByUuid(String uuid) {
-        return scheduleRepository.findByUuidAndIsDeletedFalse(uuid)
+    private TourSchedule loadById(Long id) {
+        return scheduleRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "រកមិនឃើញកាលវិភាគ uuid = " + uuid));
+                        "រកមិនឃើញកាលវិភាគ id = " + id));
     }
 
-    private Guide loadActiveGuide(String guideUuid) {
-        Guide guide = guideRepository.findByUuidAndIsDeletedFalse(guideUuid)
+    private Guide loadActiveGuide(Long guideId) {
+        Guide guide = guideRepository.findByIdAndIsDeletedFalse(guideId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "រកមិនឃើញមគ្គុទ្ទេសក៍ uuid = " + guideUuid));
+                        "រកមិនឃើញមគ្គុទ្ទេសក៍ id = " + guideId));
 
         if (guide.getStatus() != GuideStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,

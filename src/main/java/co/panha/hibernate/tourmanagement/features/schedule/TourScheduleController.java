@@ -21,15 +21,15 @@ import java.util.List;
 @Tag(name = "Schedule", description = "កាលវិភាគចេញដំណើរ")
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/v1/tours/{tourUuid}/schedules")
+@RequestMapping("/api/v1/tours/{tourId}/schedules")
 public class TourScheduleController {
 
     private final ScheduleService scheduleService;
 
     @GetMapping
     public List<ScheduleResponse> findByTour(
-            @PathVariable String tourUuid,
+            @PathVariable Long tourId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate) {
-        return scheduleService.findByTour(tourUuid, fromDate);
+        return scheduleService.findByTour(tourId, fromDate);
     }
 }

@@ -46,20 +46,20 @@ public class CategoryController {
         return categoryService.findAll(page, size);
     }
 
-    @GetMapping("/{uuid}")
-    public CategoryResponse findByUuid(@PathVariable String uuid) {
-        return categoryService.findByUuid(uuid);
+    @GetMapping("/{id}")
+    public CategoryResponse findById(@PathVariable Long id) {
+        return categoryService.findById(id);
     }
 
-    @PatchMapping("/{uuid}")
-    public CategoryResponse updateByUuid(@PathVariable String uuid,
-                                         @Valid @RequestBody UpdateCategoryRequest request) {
-        return categoryService.updateByUuid(uuid, request);
+    @PatchMapping("/{id}")
+    public CategoryResponse updateById(@PathVariable Long id,
+                                        @Valid @RequestBody UpdateCategoryRequest request) {
+        return categoryService.updateById(id, request);
     }
 
-    @DeleteMapping("/{uuid}")
+    @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteByUuid(@PathVariable String uuid) {
-        categoryService.deleteByUuid(uuid);
+    public void deleteById(@PathVariable Long id) {
+        categoryService.deleteById(id);
     }
 }

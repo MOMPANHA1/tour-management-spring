@@ -15,9 +15,8 @@ import org.mapstruct.NullValuePropertyMappingStrategy;
 @Mapper(componentModel = "spring")
 public interface CategoryMapper {
 
-    // field ទាំងនេះ Service កំណត់ដោយខ្លួនឯង (uuid, slug) ឬ JPA បំពេញ (id, audit) — mapper មិនប៉ះ
+    // slug កំណត់ដោយ Service; id និង audit បំពេញដោយ JPA — mapper មិនប៉ះ
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "uuid", ignore = true)
     @Mapping(target = "slug", ignore = true)
     @Mapping(target = "isDeleted", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
@@ -32,7 +31,6 @@ public interface CategoryMapper {
      */
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "uuid", ignore = true)
     @Mapping(target = "slug", ignore = true)
     @Mapping(target = "isDeleted", ignore = true)
     @Mapping(target = "createdAt", ignore = true)

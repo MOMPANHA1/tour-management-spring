@@ -21,16 +21,16 @@ public interface TourService {
     PageResponse<TourCardResponse> search(TourFilter filter, Integer page, Integer size);
 
     /** UC4.3 — មើលលម្អិត Tour។ */
-    TourDetailResponse findByUuid(String uuid);
+    TourDetailResponse findById(Long id);
 
     /** UC4.4 — កែ Tour (PATCH)។ */
-    TourDetailResponse updateByUuid(String uuid, UpdateTourRequest request);
+    TourDetailResponse updateById(Long id, UpdateTourRequest request);
 
     /** UC4.5 — បិទ/បើកលក់។ */
-    TourDetailResponse publish(String uuid, boolean shouldPublish);
+    TourDetailResponse publish(Long id, boolean shouldPublish);
 
     /** UC4.6 — លុប Tour (soft delete)។ */
-    void deleteByUuid(String uuid);
+    void deleteById(Long id);
 
     /** UC4.7 — Tour ពេញនិយម។ */
     List<TourCardResponse> findPopular(Integer limit);

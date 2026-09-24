@@ -37,8 +37,8 @@ public class CategoryServiceImpl implements CategoryService {
 
         // ៥. Build
         Category category = categoryMapper.toEntity(request);
-        category.setUuid(GenerateUtils.randomUUID());
-        category.setSlug(GenerateUtils.generateUniqueSlug(request.name(), categoryRepository::existsBySlug));
+        category.setSlug(GenerateUtils.generateUniqueSlug(
+                request.name(), categoryRepository::existsBySlugAndIsDeletedFalse));
         category.setIsDeleted(false);
 
         // ៦. Save + ៨. Return
@@ -54,15 +54,15 @@ public class CategoryServiceImpl implements CategoryService {
     }
 
     @Override
-    public CategoryResponse findByUuid(String uuid) {
-        return toResponse(loadByUuid(uuid));
+    public CategoryResponse findById(Long id) {
+        return toResponse(loadById(id));
     }
 
     @Override
     @Transactional
-    public CategoryResponse updateByUuid(String uuid, UpdateCategoryRequest request) {
+    public CategoryResponse updateById(Long id, UpdateCategoryRequest request) {
 
-        Category category = loadByUuid(uuid);
+        Category category = loadById(id);
 
         // ពិនិត្យស្ទួន — តែបើឈ្មោះពិតជាប្តូរ
         if (request.name() != null && !request.name().equalsIgnoreCase(category.getName())) {
@@ -70,7 +70,8 @@ public class CategoryServiceImpl implements CategoryService {
             if (categoryRepository.existsByNameIgnoreCaseAndIsDeletedFalse(request.name())) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "ប្រភេទឈ្មោះនេះមានរួចហើយ");
             }
-            category.setSlug(GenerateUtils.generateUniqueSlug(request.name(), categoryRepository::existsBySlug));
+            category.setSlug(GenerateUtils.generateUniqueSlug(
+                    request.name(), categoryRepository::existsBySlugAndIsDeletedFalse));
         }
 
         categoryMapper.updateEntity(request, category);
@@ -80,9 +81,9 @@ public class CategoryServiceImpl implements CategoryService {
 
     @Override
     @Transactional
-    public void deleteByUuid(String uuid) {
+    public void deleteById(Long id) {
 
-        Category category = loadByUuid(uuid);
+        Category category = loadById(id);
 
         // វិន័យ៖ លុបមិនបានបើនៅមាន Tour សកម្ម
         long activeTours = tourRepository.countActiveByCategory(category.getId());
@@ -97,11 +98,11 @@ public class CategoryServiceImpl implements CategoryService {
 
     // ---------- ជំនួយខាងក្នុង ----------
 
-    /** ទាញប្រភេទតាម uuid ឬបោះ 404 — ប្រើរួមគ្នាដោយ ៣ method។ */
-    private Category loadByUuid(String uuid) {
-        return categoryRepository.findByUuidAndIsDeletedFalse(uuid)
+    /** ទាញប្រភេទតាម id ឬបោះ 404 — ប្រើរួមគ្នាដោយ ៣ method។ */
+    private Category loadById(Long id) {
+        return categoryRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "រកមិនឃើញប្រភេទ uuid = " + uuid));
+                        "រកមិនឃើញប្រភេទ id = " + id));
     }
 
     /**

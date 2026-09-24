@@ -16,12 +16,12 @@ public interface DestinationService {
     /** UC2.2 — បញ្ជីទីតាំង ត្រងតាមខេត្តបាន។ */
     PageResponse<DestinationResponse> findAll(String province, Integer page, Integer size);
 
-    /** UC2.3 — ទីតាំងមួយតាម uuid។ */
-    DestinationResponse findByUuid(String uuid);
+    /** UC2.3 — ទីតាំងមួយតាម id។ */
+    DestinationResponse findById(Long id);
 
     /** UC2.4 — កែទីតាំង (PATCH)។ */
-    DestinationResponse updateByUuid(String uuid, UpdateDestinationRequest request);
+    DestinationResponse updateById(Long id, UpdateDestinationRequest request);
 
     /** UC2.5 — លុបទីតាំង (soft delete)។ */
-    void deleteByUuid(String uuid);
+    void deleteById(Long id);
 }

@@ -16,7 +16,7 @@ import java.util.Optional;
 public interface ScheduleRepository extends JpaRepository<TourSchedule, Long> {
 
     @EntityGraph(attributePaths = {"tour", "guide"})
-    Optional<TourSchedule> findByUuidAndIsDeletedFalse(String uuid);
+    Optional<TourSchedule> findByIdAndIsDeletedFalse(Long id);
 
     boolean existsByCode(String code);
 
@@ -33,8 +33,8 @@ public interface ScheduleRepository extends JpaRepository<TourSchedule, Long> {
      * ដូច្នេះការរាប់កៅអីមិនអាចអានទិន្នន័យចាស់ទេ។
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("SELECT s FROM TourSchedule s WHERE s.uuid = :uuid AND s.isDeleted = false")
-    Optional<TourSchedule> findByUuidForUpdate(@Param("uuid") String uuid);
+    @Query("SELECT s FROM TourSchedule s WHERE s.id = :id AND s.isDeleted = false")
+    Optional<TourSchedule> findByIdForUpdate(@Param("id") Long id);
 
     /** UC5.2 — កាលវិភាគដែលនៅបើកទទួលការកក់សម្រាប់ Tour មួយ។ */
     @EntityGraph(attributePaths = {"tour", "guide"})

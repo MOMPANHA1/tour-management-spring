@@ -68,11 +68,11 @@ public record CreateTourRequest(
         @Size(max = 255, message = "Thumbnail URL cannot exceed 255 characters")
         String thumbnailUrl,
 
-        @NotBlank(message = "Category is required")
-        String categoryUuid,
+        @NotNull(message = "Category is required")
+        Long categoryId,
 
         @NotEmpty(message = "At least one destination is required")
-        Set<String> destinationUuids,
+        Set<Long> destinationIds,
 
         @Valid
         @Size(max = 10, message = "A tour cannot have more than 10 images")

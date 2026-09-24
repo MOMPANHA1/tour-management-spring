@@ -16,12 +16,17 @@ public interface CategoryService {
     /** UC1.2 — បញ្ជីប្រភេទ តម្រៀបតាមឈ្មោះ ក→អ។ */
     PageResponse<CategoryResponse> findAll(Integer page, Integer size);
 
-    /** UC1.3 — ប្រភេទមួយតាម uuid។ */
-    CategoryResponse findByUuid(String uuid);
+    /** UC1.3 — ប្រភេទមួយតាម id។ */
+    CategoryResponse findById(Long id);
 
-    /** UC1.4 — កែប្រភេទ (PATCH)។ */
-    CategoryResponse updateByUuid(String uuid, UpdateCategoryRequest request);
+    /**
+     * UC1.4 — កែប្រភេទ (PATCH)។
+     *
+     * <p>បើ {@code name} ប្តូរ នោះ {@code slug} បង្កើតថ្មីតាម។ URL មិនរងផលប៉ះពាល់ទេ
+     * ព្រោះវាប្រើ {@code id}។
+     */
+    CategoryResponse updateById(Long id, UpdateCategoryRequest request);
 
     /** UC1.5 — លុបប្រភេទ (soft delete)។ */
-    void deleteByUuid(String uuid);
+    void deleteById(Long id);
 }

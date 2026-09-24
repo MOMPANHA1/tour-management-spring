@@ -11,7 +11,7 @@ import java.util.Optional;
 @Repository
 public interface DestinationRepository extends JpaRepository<Destination, Long> {
 
-    Optional<Destination> findByUuidAndIsDeletedFalse(String uuid);
+    Optional<Destination> findByIdAndIsDeletedFalse(Long id);
 
     /**
      * ពិនិត្យស្ទួន <b>ដោយមិនច្រោះ {@code isDeleted}</b> — ព្រោះ unique constraint
@@ -23,6 +23,6 @@ public interface DestinationRepository extends JpaRepository<Destination, Long> 
 
     Page<Destination> findAllByProvinceIgnoreCaseAndIsDeletedFalse(String province, Pageable pageable);
 
-    /** ប្រើនៅ F4 ពេល Tour ភ្ជាប់ទីតាំងច្រើនតាម uuid។ */
-    List<Destination> findAllByUuidInAndIsDeletedFalse(List<String> uuids);
+    /** ប្រើនៅ F4 ពេល Tour ភ្ជាប់ទីតាំងច្រើនតាម id។ */
+    List<Destination> findAllByIdInAndIsDeletedFalse(List<Long> ids);
 }

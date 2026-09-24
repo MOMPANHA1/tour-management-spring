@@ -24,7 +24,6 @@ import java.time.LocalDate;
 public interface TourMapper {
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "uuid", ignore = true)
     @Mapping(target = "code", ignore = true)
     @Mapping(target = "slug", ignore = true)
     @Mapping(target = "isPublished", ignore = true)
@@ -40,7 +39,6 @@ public interface TourMapper {
 
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "uuid", ignore = true)
     @Mapping(target = "code", ignore = true)
     @Mapping(target = "slug", ignore = true)
     @Mapping(target = "isPublished", ignore = true)
@@ -66,7 +64,7 @@ public interface TourMapper {
     TourCardResponse toCardResponse(Tour tour, LocalDate nextDepartureDate);
 
     @Mapping(target = "categoryName", source = "tour.category.name")
-    @Mapping(target = "categoryUuid", source = "tour.category.uuid")
+    @Mapping(target = "categoryId", source = "tour.category.id")
     @Mapping(target = "nextDepartureDate", source = "nextDepartureDate")
     TourDetailResponse toDetailResponse(Tour tour, LocalDate nextDepartureDate);
 }

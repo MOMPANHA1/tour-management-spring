@@ -12,9 +12,8 @@ import org.mapstruct.NullValuePropertyMappingStrategy;
 @Mapper(componentModel = "spring")
 public interface GuideMapper {
 
-    // code, status និង uuid កំណត់ដោយ Service; id និង audit បំពេញដោយ JPA
+    // code និង status កំណត់ដោយ Service; id និង audit បំពេញដោយ JPA
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "uuid", ignore = true)
     @Mapping(target = "code", ignore = true)
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "isDeleted", ignore = true)
@@ -25,7 +24,6 @@ public interface GuideMapper {
     /** PATCH — field ដែល client មិនផ្ញើ (null) មិនជាន់លើតម្លៃចាស់។ */
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "uuid", ignore = true)
     @Mapping(target = "code", ignore = true)
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "isDeleted", ignore = true)

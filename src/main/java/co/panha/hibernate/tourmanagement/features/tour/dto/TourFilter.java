@@ -14,8 +14,8 @@ import java.time.LocalDate;
  */
 public record TourFilter(
         String keyword,
-        String categoryUuid,
-        String destinationUuid,
+        Long categoryId,
+        Long destinationId,
         BigDecimal minPrice,
         BigDecimal maxPrice,
         Integer minDays,

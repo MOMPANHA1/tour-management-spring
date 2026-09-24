@@ -10,7 +10,7 @@ import java.math.BigDecimal;
  * នឹងជាការកុហក ចំណែកការគណនាវានឹងបង្ក query បន្ថែមដោយឥតប្រយោជន៍។
  */
 public record TourDestinationResponse(
-        String uuid,
+        Long id,
         String name,
         String province,
         String country,

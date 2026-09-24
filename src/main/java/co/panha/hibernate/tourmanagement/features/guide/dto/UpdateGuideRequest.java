@@ -12,7 +12,7 @@ import java.util.Set;
 /**
  * ទិន្នន័យកែមគ្គុទ្ទេសក៍ — UC3.4 (PATCH)។ គ្រប់ field អាច {@code null}។
  *
- * <p>{@code status} មិនកែនៅទីនេះទេ — ប្រើ {@code PATCH /{uuid}/status} ដែលមានវិន័យអាជីវកម្មដាច់ដោយឡែក។
+ * <p>{@code status} មិនកែនៅទីនេះទេ — ប្រើ {@code PATCH /{id}/status} ដែលមានវិន័យអាជីវកម្មដាច់ដោយឡែក។
  */
 public record UpdateGuideRequest(
 

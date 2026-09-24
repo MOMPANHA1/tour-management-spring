@@ -14,7 +14,7 @@ import java.util.Set;
 /**
  * ទិន្នន័យកែ Tour — UC4.4 (PATCH)។ គ្រប់ field អាច {@code null}។
  *
- * <p><b>ចំណាំអំពី {@code images} និង {@code destinationUuids}</b>៖ ពួកវាជា <i>បញ្ជីពេញ</i>
+ * <p><b>ចំណាំអំពី {@code images} និង {@code destinationIds}</b>៖ ពួកវាជា <i>បញ្ជីពេញ</i>
  * មិនមែនការបន្ថែមទេ។ ការផ្ញើ {@code images: []} នឹងលុបរូបភាពទាំងអស់ ចំណែកការមិនផ្ញើ
  * ({@code null}) នឹងទុកបញ្ជីចាស់ដដែល។
  */
@@ -58,9 +58,9 @@ public record UpdateTourRequest(
         @Size(max = 255, message = "Thumbnail URL cannot exceed 255 characters")
         String thumbnailUrl,
 
-        String categoryUuid,
+        Long categoryId,
 
-        Set<String> destinationUuids,
+        Set<Long> destinationIds,
 
         @Valid
         @Size(max = 10, message = "A tour cannot have more than 10 images")

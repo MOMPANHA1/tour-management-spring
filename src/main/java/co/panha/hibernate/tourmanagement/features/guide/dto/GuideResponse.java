@@ -12,7 +12,7 @@ import java.util.Set;
  *                              ព្រោះ entity {@code TourSchedule} មិនទាន់មាន (F5)។
  */
 public record GuideResponse(
-        String uuid,
+        Long id,
         String code,
         String fullName,
         Gender gender,

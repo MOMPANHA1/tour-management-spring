@@ -8,7 +8,7 @@ import java.math.BigDecimal;
  * @param tourCount ចំនួន Tour សកម្មដែលទៅដល់ទីតាំងនេះ។
  */
 public record DestinationResponse(
-        String uuid,
+        Long id,
         String name,
         String province,
         String country,

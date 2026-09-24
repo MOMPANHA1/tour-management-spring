@@ -16,7 +16,7 @@ import java.util.List;
  * <p>TODO ដំណាក់កាល ៣៖ បន្ថែម {@code upcomingSchedules} (F5) និង {@code recentReviews} (F9)។
  */
 public record TourDetailResponse(
-        String uuid,
+        Long id,
         String code,
         String title,
         String slug,
@@ -37,7 +37,7 @@ public record TourDetailResponse(
         Integer minGroupSize,
         Integer maxGroupSize,
         Boolean isPublished,
-        String categoryUuid,
+        Long categoryId,
         List<TourDestinationResponse> destinations,
         List<TourImageResponse> images
 ) {

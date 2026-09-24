@@ -18,11 +18,19 @@ import lombok.Setter;
 @Table(name = "categories")
 public class Category extends BaseEntity {
 
-    @Column(unique = true, nullable = false, length = 80)
+    // @Column(unique=true) ដកចេញដោយចេតនា — វិន័យ unique នៅលើ partial index
+    //   ux_categories_name_active ដែលរាប់តែជួរ is_deleted = false (មើល erd.md ៧.១)។
+    //   ដាក់វាមកវិញនឹងធ្វើឲ្យជួរដែលលុប (soft) កាន់កាប់ឈ្មោះជារៀងរហូត។
+    @Column(nullable = false, length = 80)
     private String name;
 
-    /** បង្កើតពី {@code name} ដោយ {@code GenerateUtils.generateUniqueSlug} — ប្រើលើ URL។ */
-    @Column(unique = true, nullable = false, length = 100)
+    /**
+     * បង្កើតពី {@code name} ដោយ {@code GenerateUtils.generateUniqueSlug} — ជាអាសយដ្ឋានលើ API។
+     *
+     * <p>unique នៅលើ partial index {@code ux_categories_slug_active} មិនមែនលើ column ទេ —
+     * ដូច្នេះជួរដែលលុប (soft) លែងកាន់កាប់ slug ហើយឈ្មោះចាស់អាចប្រើឡើងវិញបាន។
+     */
+    @Column(nullable = false, length = 100)
     private String slug;
 
     @Column(columnDefinition = "TEXT")

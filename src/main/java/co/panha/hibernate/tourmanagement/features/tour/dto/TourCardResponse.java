@@ -13,7 +13,7 @@ import java.time.LocalDate;
  *                          "ឆាប់ៗនេះ" ហើយលាក់ប៊ូតុងកក់ — សូមមើល {@code ux-flow.md} §២.១។
  */
 public record TourCardResponse(
-        String uuid,
+        Long id,
         String code,
         String title,
         String slug,

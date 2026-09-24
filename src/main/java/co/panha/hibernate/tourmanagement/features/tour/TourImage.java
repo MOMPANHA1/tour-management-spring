@@ -17,7 +17,7 @@ import lombok.Setter;
  * រូបភាពរបស់ Tour។
  *
  * <p><b>មិនពង្រីក {@code BaseEntity}</b> ដោយចេតនា — រូបភាពជាផ្នែករងរបស់ Tour មិនមែនធនធានឯករាជ្យ
- * ដែលមាន URL ផ្ទាល់ខ្លួនទេ ដូច្នេះមិនត្រូវការ {@code uuid} ឬ soft delete។ លុប Tour → រូបលុបតាម។
+ * ដែលមាន URL ផ្ទាល់ខ្លួនទេ ដូច្នេះមិនត្រូវការ soft delete។ លុប Tour → រូបលុបតាម។
  */
 @Getter
 @Setter

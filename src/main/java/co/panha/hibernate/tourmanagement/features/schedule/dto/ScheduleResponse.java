@@ -16,11 +16,11 @@ import java.time.LocalTime;
  * @param effectivePrice {@code priceOverride} បើមាន បើមិនដូច្នេះ {@code tour.price}។
  */
 public record ScheduleResponse(
-        String uuid,
+        Long id,
         String code,
-        String tourUuid,
+        Long tourId,
         String tourTitle,
-        String guideUuid,
+        Long guideId,
         String guideName,
         LocalDate departureDate,
         LocalDate returnDate,

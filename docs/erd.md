@@ -49,7 +49,6 @@ erDiagram
 
     CATEGORIES {
         bigint  id            PK
-        varchar uuid          UK
         varchar name          UK "80"
         varchar slug          UK "100"
         text    description
@@ -59,7 +58,6 @@ erDiagram
 
     DESTINATIONS {
         bigint  id            PK
-        varchar uuid          UK
         varchar name          "120 · UK(name,province)"
         varchar province      "80"
         varchar country       "80 · DEFAULT Cambodia"
@@ -77,7 +75,6 @@ erDiagram
 
     GUIDES {
         bigint  id              PK
-        varchar uuid            UK
         varchar code            UK "20 · GD-0001"
         varchar full_name       "120"
         varchar gender          "ENUM"
@@ -97,7 +94,6 @@ erDiagram
 
     TOURS {
         bigint  id              PK
-        varchar uuid            UK
         varchar code            UK "20 · TR-0001"
         varchar title           "180"
         varchar slug            UK "200"
@@ -129,7 +125,6 @@ erDiagram
 
     TOUR_SCHEDULES {
         bigint  id             PK
-        varchar uuid           UK
         varchar code           UK "25 · SC-20260912-01"
         bigint  tour_id        FK "NOT NULL"
         bigint  guide_id       FK "NULL បាន"
@@ -146,7 +141,6 @@ erDiagram
 
     CUSTOMERS {
         bigint  id            PK
-        varchar uuid          UK
         varchar username      UK "60"
         varchar full_name     "120"
         varchar email         UK "120"
@@ -163,7 +157,6 @@ erDiagram
 
     BOOKINGS {
         bigint    id              PK
-        varchar   uuid            UK
         varchar   code            UK "30 · BK-20260912-0001"
         bigint    customer_id     FK "NOT NULL"
         bigint    schedule_id     FK "NOT NULL"
@@ -195,7 +188,6 @@ erDiagram
 
     PAYMENTS {
         bigint    id             PK
-        varchar   uuid           UK
         varchar   reference_no   UK "40 · PM-20260912-0001"
         bigint    booking_id     FK "NOT NULL"
         varchar   type           "ENUM"
@@ -215,7 +207,6 @@ erDiagram
 
     REVIEWS {
         bigint    id            PK
-        varchar   uuid          UK
         bigint    booking_id    FK "UK — OneToOne"
         bigint    tour_id       FK "NOT NULL"
         bigint    customer_id   FK "NOT NULL"
@@ -308,26 +299,27 @@ erDiagram
 
 | Column | ប្រភេទ SQL | Constraint | ការប្រើ |
 |---|---|---|---|
-| `id` | `BIGSERIAL` | **PK** · `@GeneratedValue(IDENTITY)` | សោខាងក្នុង — **មិនបង្ហាញលើ API** |
-| `uuid` | `VARCHAR(36)` | **UNIQUE** · NOT NULL | សោសាធារណៈលើ API |
+| `id` | `BIGSERIAL` | **PK** · `@GeneratedValue(IDENTITY)` | សោតែមួយ — **បង្ហាញលើ API ដោយផ្ទាល់** (`/tours/1`) |
 | `is_deleted` | `BOOLEAN` | NOT NULL · DEFAULT `false` | Soft delete |
 | `created_at` | `TIMESTAMP` | `@CreatedDate` | បំពេញដោយ `@EnableJpaAuditing` |
 | `updated_at` | `TIMESTAMP` | `@LastModifiedDate` | ដូចគ្នា |
 
-> **ហេតុអ្វីមាន `id` ទាំង `uuid`?** `id` ជាលេខតូច (៨ byte) ប្រើសម្រាប់ FK និង index — លឿន។ `uuid` បង្ហាញខាងក្រៅដើម្បីកុំឲ្យអ្នកប្រើទាយលេខ resource អ្នកដទៃបាន (`/tours/1`, `/tours/2`, ...)។
+> មុននេះមាន column `uuid` បន្ថែមទៀតជាសោសាធារណៈ។ វាត្រូវដកចេញ ហើយ `id` ប្រើទាំងខាងក្នុង
+> និងខាងក្រៅ ដូច ecommerce-sb13។ ថ្លៃដែលបង់៖ `/bookings/1`, `/bookings/2` រាប់អស់បាន
+> ដូច្នេះ endpoint ដែលមានទិន្នន័យឯកជនត្រូវពឹងលើ Spring Security មិនមែនលើការទាយមិនចេញទេ។
 
 ---
 
 ## ៤. តារាងលម្អិតម្តងមួយៗ
 
-> គ្រប់តារាងដែលមានសញ្ញា ✅ ក្នុងផ្នែក ២ មាន column ទាំង ៥ របស់ BaseEntity បន្ថែមលើអ្វីដែលរាយខាងក្រោម។
+> គ្រប់តារាងដែលមានសញ្ញា ✅ ក្នុងផ្នែក ២ មាន column ទាំង ៤ របស់ BaseEntity បន្ថែមលើអ្វីដែលរាយខាងក្រោម។
 
 ### ៤.១ `categories` — ប្រភេទ Tour
 
 | Column | ប្រភេទ | Null | Constraint |
 |---|---|---|---|
-| `name` | `VARCHAR(80)` | ❌ | **UNIQUE** |
-| `slug` | `VARCHAR(100)` | ❌ | **UNIQUE** — បង្កើតពី `name` ដោយ `generateUniqueSlug()` |
+| `name` | `VARCHAR(80)` | ❌ | **UNIQUE** លើ partial index `ux_categories_name_active` |
+| `slug` | `VARCHAR(100)` | ❌ | **UNIQUE** លើ partial index `ux_categories_slug_active` — បង្កើតពី `name` |
 | `description` | `TEXT` | ✅ | |
 | `icon_url` | `VARCHAR(255)` | ✅ | |
 
@@ -631,8 +623,7 @@ FK ទាំង ២ នេះ **ស្ទួនតក្កវិជ្ជា** 
 
 | តារាង | Constraint |
 |---|---|
-| គ្រប់តារាង BaseEntity | `uuid` |
-| `categories` | `name` · `slug` |
+| `categories` | គ្មាន — `name` និង `slug` ប្រើ **partial index** (មើល ៧.៣) |
 | `destinations` | `(name, province)` រួម |
 | `guides` | `code` · `phone_number` · `email` |
 | `tours` | `code` · `slug` |
@@ -671,6 +662,50 @@ Hibernate បង្កើត index ឲ្យតែ PK និង UNIQUE ប៉ុ
 })
 ```
 
+### ៧.៣ Partial unique index — unique + soft delete
+
+បញ្ហា៖ `is_deleted = true` គ្រាន់តែជាទង់មួយ — ជួរនៅតែស្ថិតក្នុងតារាង ដូច្នេះវានៅតែកាន់កាប់
+`UNIQUE` constraint ធម្មតា។ លទ្ធផលគឺបង្កើតឈ្មោះដែលធ្លាប់លុបឡើងវិញ **មិនបាន** ជារៀងរហូត៖
+Service ពិនិត្យ `existsByNameIgnoreCaseAndIsDeletedFalse` ឃើញថាទំនេរ → អនុញ្ញាត → `INSERT`
+បរាជ័យនៅ PostgreSQL → `DataIntegrityViolationException` → 409 ដែលគ្មានន័យសម្រាប់អ្នកប្រើ។
+
+ដំណោះស្រាយ៖ ផ្លាស់វិន័យ unique ទៅលើ index ដែលរាប់តែជួររស់ ដើម្បីឲ្យវាត្រូវនឹង query របស់ Service។
+
+```sql
+ALTER TABLE categories DROP CONSTRAINT ukt8o6pivur7nn124jehx7cygw5;  -- UNIQUE (name)
+ALTER TABLE categories DROP CONSTRAINT ukoul14ho7bctbefv8jywp5v3i2;  -- UNIQUE (slug)
+
+CREATE UNIQUE INDEX ux_categories_name_active
+    ON categories (LOWER(name)) WHERE is_deleted = false;
+
+CREATE UNIQUE INDEX ux_categories_slug_active
+    ON categories (slug) WHERE is_deleted = false;
+```
+
+`LOWER(name)` ព្រោះ Service ពិនិត្យដោយ `IgnoreCase` — index ត្រូវតែអនុវត្តវិន័យដដែល។
+
+ត្រូវ **ដក** `@Column(unique = true)` ចេញពី `Category.name` និង `Category.slug` ផង បើមិនដូច្នេះ
+`ddl-auto=update` នឹងបង្កើត constraint ចាស់មកវិញនៅពេលចាប់ផ្តើមលើកក្រោយ។
+
+> **នៅសល់**៖ `tours` (`code` · `slug`), `guides`, `customers`, `tour_schedules` និង `bookings`
+> មានបញ្ហាដដែល — ពួកវាមាន soft delete តែនៅប្រើ `UNIQUE` ធម្មតា។
+
+### ៧.៤ ការដក `uuid` ចេញ (migration)
+
+`BaseEntity` ធ្លាប់មាន column `uuid VARCHAR(36) NOT NULL UNIQUE` ជាសោសាធារណៈ។ វាត្រូវដកចេញ
+ហើយ `id` ប្រើជំនួស។ `ddl-auto=update` **មិនដែលដក column ចេញទេ** ដូច្នេះត្រូវរត់ដោយដៃ —
+បើមិនធ្វើ រាល់ `INSERT` នឹងបរាជ័យព្រោះ `uuid` នៅជា `NOT NULL` គ្មានតម្លៃលំនាំដើម៖
+
+```sql
+ALTER TABLE categories     DROP COLUMN uuid;
+ALTER TABLE destinations   DROP COLUMN uuid;
+ALTER TABLE guides         DROP COLUMN uuid;
+ALTER TABLE tours          DROP COLUMN uuid;
+ALTER TABLE tour_schedules DROP COLUMN uuid;
+```
+
+`DROP COLUMN` លុប unique constraint របស់វាតាមដោយស្វ័យប្រវត្តិ។
+
 ---
 
 ## ៨. Field គណនាទុកមុន (Denormalized)
@@ -701,7 +736,7 @@ Hibernate បង្កើត index ឲ្យតែ PK និង UNIQUE ប៉ុ
 រាល់តារាង BaseEntity មាន `is_deleted`។ **គ្រប់ query ត្រូវច្រោះ** — នេះជាមូលហេតុដែលឈ្មោះ repository method ទាំងអស់បញ្ចប់ដោយ `AndIsDeletedFalse`៖
 
 ```java
-findByUuidAndIsDeletedFalse(uuid)
+findByIdAndIsDeletedFalse(id)
 findAllByStatusAndIsDeletedFalse(status, pageable)
 ```
 
@@ -720,8 +755,8 @@ private Long version;
 
 ```java
 @Lock(LockModeType.PESSIMISTIC_WRITE)
-@Query("SELECT s FROM TourSchedule s WHERE s.uuid = :uuid AND s.isDeleted = false")
-Optional<TourSchedule> findByUuidForUpdate(@Param("uuid") String uuid);
+@Query("SELECT s FROM TourSchedule s WHERE s.id = :id AND s.isDeleted = false")
+Optional<TourSchedule> findByIdForUpdate(@Param("id") String id);
 ```
 
 ចាក់សោជួរកាលវិភាគពេញរយៈពេល transaction នៃ `bookTour()` — មនុស្សដទៃត្រូវរង់ចាំ។ នេះជាអ្វីដែលធានាថា **កៅអីមិនលក់លើស** ពេលមានការកក់ព្រមគ្នា។
@@ -746,9 +781,8 @@ public class JpaAuditingConfig { }
 -- ១. ប្រភេទ និងទីតាំង
 CREATE TABLE categories (
     id          BIGSERIAL PRIMARY KEY,
-    uuid        VARCHAR(36)  NOT NULL UNIQUE,
-    name        VARCHAR(80)  NOT NULL UNIQUE,
-    slug        VARCHAR(100) NOT NULL UNIQUE,
+    name        VARCHAR(80)  NOT NULL,   -- unique លើ ux_categories_name_active
+    slug        VARCHAR(100) NOT NULL,   -- unique លើ ux_categories_slug_active
     description TEXT,
     icon_url    VARCHAR(255),
     is_deleted  BOOLEAN      NOT NULL DEFAULT FALSE,
@@ -758,7 +792,6 @@ CREATE TABLE categories (
 
 CREATE TABLE destinations (
     id          BIGSERIAL PRIMARY KEY,
-    uuid        VARCHAR(36)  NOT NULL UNIQUE,
     name        VARCHAR(120) NOT NULL,
     province    VARCHAR(80)  NOT NULL,
     country     VARCHAR(80)  NOT NULL DEFAULT 'Cambodia',
@@ -775,7 +808,6 @@ CREATE TABLE destinations (
 -- ២. មគ្គុទ្ទេសក៍
 CREATE TABLE guides (
     id               BIGSERIAL PRIMARY KEY,
-    uuid             VARCHAR(36)  NOT NULL UNIQUE,
     code             VARCHAR(20)  NOT NULL UNIQUE,
     full_name        VARCHAR(120) NOT NULL,
     gender           VARCHAR(20),
@@ -799,7 +831,6 @@ CREATE TABLE guide_languages (
 -- ៣. Tour
 CREATE TABLE tours (
     id              BIGSERIAL PRIMARY KEY,
-    uuid            VARCHAR(36)  NOT NULL UNIQUE,
     code            VARCHAR(20)  NOT NULL UNIQUE,
     title           VARCHAR(180) NOT NULL,
     slug            VARCHAR(200) NOT NULL UNIQUE,
@@ -840,7 +871,6 @@ CREATE TABLE tour_destinations (
 -- ៤. កាលវិភាគ
 CREATE TABLE tour_schedules (
     id             BIGSERIAL PRIMARY KEY,
-    uuid           VARCHAR(36) NOT NULL UNIQUE,
     code           VARCHAR(25) NOT NULL UNIQUE,
     tour_id        BIGINT      NOT NULL REFERENCES tours(id),
     guide_id       BIGINT      REFERENCES guides(id),
@@ -860,7 +890,6 @@ CREATE TABLE tour_schedules (
 -- ៥. អតិថិជន
 CREATE TABLE customers (
     id            BIGSERIAL PRIMARY KEY,
-    uuid          VARCHAR(36)  NOT NULL UNIQUE,
     username      VARCHAR(60)  NOT NULL UNIQUE,
     full_name     VARCHAR(120) NOT NULL,
     email         VARCHAR(120) NOT NULL UNIQUE,
@@ -880,7 +909,6 @@ CREATE TABLE customers (
 -- ៦. ការកក់
 CREATE TABLE bookings (
     id               BIGSERIAL PRIMARY KEY,
-    uuid             VARCHAR(36) NOT NULL UNIQUE,
     code             VARCHAR(30) NOT NULL UNIQUE,
     customer_id      BIGINT      NOT NULL REFERENCES customers(id),
     schedule_id      BIGINT      NOT NULL REFERENCES tour_schedules(id),
@@ -915,7 +943,6 @@ CREATE TABLE passengers (
 -- ៧. ការទូទាត់
 CREATE TABLE payments (
     id             BIGSERIAL PRIMARY KEY,
-    uuid           VARCHAR(36) NOT NULL UNIQUE,
     reference_no   VARCHAR(40) NOT NULL UNIQUE,
     booking_id     BIGINT      NOT NULL REFERENCES bookings(id),
     type           VARCHAR(20),
@@ -938,7 +965,6 @@ CREATE TABLE payments (
 -- ៨. ការវាយតម្លៃ
 CREATE TABLE reviews (
     id            BIGSERIAL PRIMARY KEY,
-    uuid          VARCHAR(36) NOT NULL UNIQUE,
     booking_id    BIGINT      NOT NULL UNIQUE REFERENCES bookings(id),
     tour_id       BIGINT      NOT NULL REFERENCES tours(id),
     customer_id   BIGINT      NOT NULL REFERENCES customers(id),

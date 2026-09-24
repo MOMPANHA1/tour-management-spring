@@ -55,8 +55,8 @@ public class TourController {
     @GetMapping
     public PageResponse<TourCardResponse> search(
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) String categoryUuid,
-            @RequestParam(required = false) String destinationUuid,
+            @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) Long destinationId,
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
             @RequestParam(required = false) Integer minDays,
@@ -67,7 +67,7 @@ public class TourController {
             @RequestParam(defaultValue = "0") Integer page,
             @RequestParam(defaultValue = "12") Integer size) {
 
-        TourFilter filter = new TourFilter(keyword, categoryUuid, destinationUuid,
+        TourFilter filter = new TourFilter(keyword, categoryId, destinationId,
                 minPrice, maxPrice, minDays, maxDays, difficulty, departureAfter, sortBy);
 
         return tourService.search(filter, page, size);
@@ -78,26 +78,26 @@ public class TourController {
         return tourService.findPopular(limit);
     }
 
-    @GetMapping("/{uuid}")
-    public TourDetailResponse findByUuid(@PathVariable String uuid) {
-        return tourService.findByUuid(uuid);
+    @GetMapping("/{id}")
+    public TourDetailResponse findById(@PathVariable Long id) {
+        return tourService.findById(id);
     }
 
-    @PatchMapping("/{uuid}")
-    public TourDetailResponse updateByUuid(@PathVariable String uuid,
+    @PatchMapping("/{id}")
+    public TourDetailResponse updateById(@PathVariable Long id,
                                            @Valid @RequestBody UpdateTourRequest request) {
-        return tourService.updateByUuid(uuid, request);
+        return tourService.updateById(id, request);
     }
 
-    @PatchMapping("/{uuid}/publish")
-    public TourDetailResponse publish(@PathVariable String uuid,
+    @PatchMapping("/{id}/publish")
+    public TourDetailResponse publish(@PathVariable Long id,
                                       @Valid @RequestBody PublishTourRequest request) {
-        return tourService.publish(uuid, request.published());
+        return tourService.publish(id, request.published());
     }
 
-    @DeleteMapping("/{uuid}")
+    @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteByUuid(@PathVariable String uuid) {
-        tourService.deleteByUuid(uuid);
+    public void deleteById(@PathVariable Long id) {
+        tourService.deleteById(id);
     }
 }

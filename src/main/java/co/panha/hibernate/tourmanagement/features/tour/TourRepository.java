@@ -16,7 +16,7 @@ import java.util.Optional;
 public interface TourRepository extends JpaRepository<Tour, Long>, JpaSpecificationExecutor<Tour> {
 
     @EntityGraph(attributePaths = {"category"})
-    Optional<Tour> findByUuidAndIsDeletedFalse(String uuid);
+    Optional<Tour> findByIdAndIsDeletedFalse(Long id);
 
     Optional<Tour> findBySlugAndIsDeletedFalse(String slug);
 

@@ -45,7 +45,6 @@ public class GuideServiceImpl implements GuideService {
         }
 
         Guide guide = guideMapper.toEntity(request);
-        guide.setUuid(GenerateUtils.randomUUID());
         guide.setCode(nextGuideCode());
         guide.setStatus(GuideStatus.ACTIVE);
         guide.setIsDeleted(false);
@@ -87,15 +86,15 @@ public class GuideServiceImpl implements GuideService {
     }
 
     @Override
-    public GuideResponse findByUuid(String uuid) {
-        return toResponse(loadByUuid(uuid));
+    public GuideResponse findById(Long id) {
+        return toResponse(loadById(id));
     }
 
     @Override
     @Transactional
-    public GuideResponse updateByUuid(String uuid, UpdateGuideRequest request) {
+    public GuideResponse updateById(Long id, UpdateGuideRequest request) {
 
-        Guide guide = loadByUuid(uuid);
+        Guide guide = loadById(id);
 
         if (request.phoneNumber() != null
                 && !request.phoneNumber().equals(guide.getPhoneNumber())
@@ -116,9 +115,9 @@ public class GuideServiceImpl implements GuideService {
 
     @Override
     @Transactional
-    public GuideResponse changeStatus(String uuid, UpdateGuideStatusRequest request) {
+    public GuideResponse changeStatus(Long id, UpdateGuideStatusRequest request) {
 
-        Guide guide = loadByUuid(uuid);
+        Guide guide = loadById(id);
 
         if (guide.getStatus() == request.status()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
@@ -142,18 +141,18 @@ public class GuideServiceImpl implements GuideService {
 
     @Override
     @Transactional
-    public void deleteByUuid(String uuid) {
-        Guide guide = loadByUuid(uuid);
+    public void deleteById(Long id) {
+        Guide guide = loadById(id);
         guide.setIsDeleted(true);
         guideRepository.save(guide);
     }
 
     // ---------- ជំនួយខាងក្នុង ----------
 
-    private Guide loadByUuid(String uuid) {
-        return guideRepository.findByUuidAndIsDeletedFalse(uuid)
+    private Guide loadById(Long id) {
+        return guideRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "រកមិនឃើញមគ្គុទ្ទេសក៍ uuid = " + uuid));
+                        "រកមិនឃើញមគ្គុទ្ទេសក៍ id = " + id));
     }
 
     /**

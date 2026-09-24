@@ -46,20 +46,20 @@ public class DestinationController {
         return destinationService.findAll(province, page, size);
     }
 
-    @GetMapping("/{uuid}")
-    public DestinationResponse findByUuid(@PathVariable String uuid) {
-        return destinationService.findByUuid(uuid);
+    @GetMapping("/{id}")
+    public DestinationResponse findById(@PathVariable Long id) {
+        return destinationService.findById(id);
     }
 
-    @PatchMapping("/{uuid}")
-    public DestinationResponse updateByUuid(@PathVariable String uuid,
+    @PatchMapping("/{id}")
+    public DestinationResponse updateById(@PathVariable Long id,
                                             @Valid @RequestBody UpdateDestinationRequest request) {
-        return destinationService.updateByUuid(uuid, request);
+        return destinationService.updateById(id, request);
     }
 
-    @DeleteMapping("/{uuid}")
+    @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteByUuid(@PathVariable String uuid) {
-        destinationService.deleteByUuid(uuid);
+    public void deleteById(@PathVariable Long id) {
+        destinationService.deleteById(id);
     }
 }

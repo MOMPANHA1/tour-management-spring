@@ -87,13 +87,12 @@ ORELSE THROW <ErrorType>("...")       Optional ទទេ → បោះកំហ�
 ```
 ABSTRACT ENTITY BaseEntity  @MappedSuperclass @EntityListeners(AuditingEntityListener)
     id          : Long           @Id @GeneratedValue(IDENTITY)
-    uuid        : String         @Column(unique, nullable=false, length=36)
     isDeleted   : Boolean        @Column(nullable=false)  DEFAULT false
     createdAt   : LocalDateTime  @CreatedDate
     updatedAt   : LocalDateTime  @LastModifiedDate
 ```
 
-> - `uuid` ជាសោសាធារណៈដែលបង្ហាញលើ API (មិនបង្ហាញ `id`)។
+> - `id` ជាលេខ auto-increment ហើយជាសោដែលបង្ហាញលើ API ដោយផ្ទាល់ (`/api/v1/tours/1`)។
 > - `isDeleted` សម្រាប់ **soft delete** — គ្រប់ query ត្រូវច្រោះ `isDeleted = false`។
 > - ត្រូវបើក `@EnableJpaAuditing` នៅ `config/JpaAuditingConfig`។
 
@@ -168,9 +167,9 @@ Customer  1 ────< N  Review
 |---|---|---|---|
 | UC1.1 | Admin បង្កើតប្រភេទ | `POST /api/v1/categories` | ADMIN |
 | UC1.2 | មើលបញ្ជីប្រភេទទាំងអស់ | `GET /api/v1/categories` | សាធារណៈ |
-| UC1.3 | មើលប្រភេទមួយ | `GET /api/v1/categories/{uuid}` | សាធារណៈ |
-| UC1.4 | Admin កែប្រភេទ | `PATCH /api/v1/categories/{uuid}` | ADMIN |
-| UC1.5 | Admin លុបប្រភេទ | `DELETE /api/v1/categories/{uuid}` | ADMIN |
+| UC1.3 | មើលប្រភេទមួយ | `GET /api/v1/categories/{slug}` | សាធារណៈ |
+| UC1.4 | Admin កែប្រភេទ | `PATCH /api/v1/categories/{slug}` | ADMIN |
+| UC1.5 | Admin លុបប្រភេទ | `DELETE /api/v1/categories/{slug}` | ADMIN |
 
 ## F1.2 Entity
 
@@ -197,7 +196,7 @@ DTO UpdateCategoryRequest:          # PATCH — គ្រប់ field អាច 
     iconUrl     : String  @Size(max=255)
 
 DTO CategoryResponse:
-    uuid        : String
+    id        : String
     name        : String
     slug        : String
     description : String
@@ -210,7 +209,7 @@ DTO CategoryResponse:
 ```
 REPOSITORY CategoryRepository EXTENDS JpaRepository<Category, Long>
 
-    findByUuidAndIsDeletedFalse(uuid)       -> Optional<Category>
+    findBySlugAndIsDeletedFalse(slug)       -> Optional<Category>
     existsByNameIgnoreCaseAndIsDeletedFalse(name) -> boolean
     existsBySlug(slug)                      -> boolean
     findAllByIsDeletedFalse(pageable)       -> Page<Category>
@@ -233,7 +232,6 @@ FUNCTION createNew(req) -> CategoryResponse:
 
     # ៥. Build
     category = mapper.toEntity(req)
-    SET category.uuid      = randomUUID()
     SET category.slug      = generateUniqueSlug(req.name)
     SET category.isDeleted = false
 
@@ -263,17 +261,17 @@ FUNCTION findAll(page, size) -> PageResponse<CategoryResponse>:
 END FUNCTION
 
 
-FUNCTION findByUuid(uuid) -> CategoryResponse:
-    category = categoryRepo.findByUuidAndIsDeletedFalse(uuid)
-               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញប្រភេទ uuid = " + uuid)
+FUNCTION findBySlug(slug) -> CategoryResponse:
+    category = categoryRepo.findBySlugAndIsDeletedFalse(slug)
+               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញប្រភេទ slug = " + slug)
     RETURN mapper.toResponse(category)
 END FUNCTION
 
 
-FUNCTION updateByUuid(uuid, req) -> CategoryResponse:
+FUNCTION updateBySlug(slug, req) -> CategoryResponse:
 
-    category = categoryRepo.findByUuidAndIsDeletedFalse(uuid)
-               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញប្រភេទ uuid = " + uuid)
+    category = categoryRepo.findBySlugAndIsDeletedFalse(slug)
+               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញប្រភេទ slug = " + slug)
 
     # ពិនិត្យស្ទួន — តែបើឈ្មោះពិតជាប្តូរ
     IF req.name IS NOT NULL AND req.name != category.name THEN
@@ -287,10 +285,10 @@ FUNCTION updateByUuid(uuid, req) -> CategoryResponse:
 END FUNCTION
 
 
-FUNCTION deleteByUuid(uuid) -> void:
+FUNCTION deleteBySlug(slug) -> void:
 
-    category = categoryRepo.findByUuidAndIsDeletedFalse(uuid)
-               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញប្រភេទ uuid = " + uuid)
+    category = categoryRepo.findBySlugAndIsDeletedFalse(slug)
+               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញប្រភេទ slug = " + slug)
 
     # វិន័យ៖ លុបមិនបានបើនៅមាន Tour សកម្ម
     activeTours = categoryRepo.countActiveTours(category.id)
@@ -314,14 +312,14 @@ CONTROLLER CategoryController  base = "/api/v1/categories"
     GET    "/"              status 200  page=0, size=10
            -> RETURN service.findAll(page, size)
 
-    GET    "/{uuid}"        status 200
-           -> RETURN service.findByUuid(uuid)
+    GET    "/{slug}"        status 200
+           -> RETURN service.findBySlug(slug)
 
-    PATCH  "/{uuid}"        status 200  @Valid UpdateCategoryRequest
-           -> RETURN service.updateByUuid(uuid, body)
+    PATCH  "/{slug}"        status 200  @Valid UpdateCategoryRequest
+           -> RETURN service.updateBySlug(slug, body)
 
-    DELETE "/{uuid}"        status 204
-           -> CALL service.deleteByUuid(uuid)
+    DELETE "/{slug}"        status 204
+           -> CALL service.deleteBySlug(slug)
 ```
 
 ---
@@ -336,9 +334,9 @@ CONTROLLER CategoryController  base = "/api/v1/categories"
 |---|---|---|---|
 | UC2.1 | Admin បង្កើតទីតាំង | `POST /api/v1/destinations` | ADMIN |
 | UC2.2 | មើលបញ្ជីទីតាំង (ស្វែងរកតាមខេត្ត) | `GET /api/v1/destinations?province=` | សាធារណៈ |
-| UC2.3 | មើលទីតាំងមួយ + Tour ដែលទៅដល់ | `GET /api/v1/destinations/{uuid}` | សាធារណៈ |
-| UC2.4 | Admin កែទីតាំង | `PATCH /api/v1/destinations/{uuid}` | ADMIN |
-| UC2.5 | Admin លុបទីតាំង | `DELETE /api/v1/destinations/{uuid}` | ADMIN |
+| UC2.3 | មើលទីតាំងមួយ + Tour ដែលទៅដល់ | `GET /api/v1/destinations/{id}` | សាធារណៈ |
+| UC2.4 | Admin កែទីតាំង | `PATCH /api/v1/destinations/{id}` | ADMIN |
+| UC2.5 | Admin លុបទីតាំង | `DELETE /api/v1/destinations/{id}` | ADMIN |
 
 ## F2.2 Entity
 
@@ -371,7 +369,7 @@ DTO CreateDestinationRequest:
 DTO UpdateDestinationRequest:       # គ្រប់ field nullable
 
 DTO DestinationResponse:
-    uuid, name, province, country, description
+    id, name, province, country, description
     latitude, longitude, imageUrl
     tourCount   : long
 
@@ -384,11 +382,11 @@ DTO DestinationDetailResponse EXTENDS DestinationResponse:
 ```
 REPOSITORY DestinationRepository EXTENDS JpaRepository<Destination, Long>
 
-    findByUuidAndIsDeletedFalse(uuid)                 -> Optional<Destination>
+    findByIdAndIsDeletedFalse(id)                 -> Optional<Destination>
     existsByNameIgnoreCaseAndProvinceIgnoreCase(n, p) -> boolean
     findAllByIsDeletedFalse(pageable)                 -> Page<Destination>
     findAllByProvinceIgnoreCaseAndIsDeletedFalse(province, pageable) -> Page<Destination>
-    findAllByUuidIn(uuids)                            -> List<Destination>
+    findAllByIdIn(ids)                                -> List<Destination>
 ```
 
 ## F2.5 Service
@@ -404,7 +402,6 @@ FUNCTION createNew(req) -> DestinationResponse:
         THROW ResponseStatusException(HttpStatus.BAD_REQUEST, "ត្រូវបំពេញ latitude និង longitude ទាំងពីរ ឬទុកទទេទាំងពីរ")
 
     destination = mapper.toEntity(req)
-    SET destination.uuid      = randomUUID()
     SET destination.country   = req.country ORELSE "Cambodia"
     SET destination.isDeleted = false
 
@@ -425,24 +422,24 @@ FUNCTION findAll(province, page, size) -> PageResponse<DestinationResponse>:
 END FUNCTION
 
 
-FUNCTION findByUuid(uuid) -> DestinationDetailResponse:
-    destination = destinationRepo.findByUuidAndIsDeletedFalse(uuid)
-                  ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញទីតាំង uuid = " + uuid)
+FUNCTION findById(id) -> DestinationDetailResponse:
+    destination = destinationRepo.findByIdAndIsDeletedFalse(id)
+                  ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញទីតាំង id = " + id)
     RETURN mapper.toDetailResponse(destination)
 END FUNCTION
 
 
-FUNCTION updateByUuid(uuid, req) -> DestinationResponse:
-    destination = destinationRepo.findByUuidAndIsDeletedFalse(uuid)
-                  ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញទីតាំង uuid = " + uuid)
+FUNCTION updateById(id, req) -> DestinationResponse:
+    destination = destinationRepo.findByIdAndIsDeletedFalse(id)
+                  ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញទីតាំង id = " + id)
     mapper.toEntity(req, destination)
     RETURN mapper.toResponse(destinationRepo.save(destination))
 END FUNCTION
 
 
-FUNCTION deleteByUuid(uuid) -> void:
-    destination = destinationRepo.findByUuidAndIsDeletedFalse(uuid)
-                  ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញទីតាំង uuid = " + uuid)
+FUNCTION deleteById(id) -> void:
+    destination = destinationRepo.findByIdAndIsDeletedFalse(id)
+                  ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញទីតាំង id = " + id)
 
     IF destination.tours IS NOT EMPTY THEN
         THROW ResponseStatusException(HttpStatus.CONFLICT, "មិនអាចលុបបានទេ ព្រោះនៅមាន Tour ភ្ជាប់នឹងទីតាំងនេះ")
@@ -459,9 +456,9 @@ CONTROLLER DestinationController  base = "/api/v1/destinations"
 
     POST   "/"           201   @Valid CreateDestinationRequest
     GET    "/"           200   province(optional), page=0, size=10
-    GET    "/{uuid}"     200
-    PATCH  "/{uuid}"     200   @Valid UpdateDestinationRequest
-    DELETE "/{uuid}"     204
+    GET    "/{id}"     200
+    PATCH  "/{id}"     200   @Valid UpdateDestinationRequest
+    DELETE "/{id}"     204
 ```
 
 ---
@@ -476,9 +473,9 @@ CONTROLLER DestinationController  base = "/api/v1/destinations"
 |---|---|---|---|
 | UC3.1 | Admin បង្កើតមគ្គុទ្ទេសក៍ | `POST /api/v1/guides` | ADMIN |
 | UC3.2 | Admin មើលបញ្ជីមគ្គុទ្ទេសក៍ | `GET /api/v1/guides` | ADMIN |
-| UC3.3 | មើលប្រវត្តិរូបមគ្គុទ្ទេសក៍ | `GET /api/v1/guides/{uuid}` | សាធារណៈ |
-| UC3.4 | Admin កែព័ត៌មាន | `PATCH /api/v1/guides/{uuid}` | ADMIN |
-| UC3.5 | Admin ប្តូរស្ថានភាព (សកម្ម/ឈប់) | `PATCH /api/v1/guides/{uuid}/status` | ADMIN |
+| UC3.3 | មើលប្រវត្តិរូបមគ្គុទ្ទេសក៍ | `GET /api/v1/guides/{id}` | សាធារណៈ |
+| UC3.4 | Admin កែព័ត៌មាន | `PATCH /api/v1/guides/{id}` | ADMIN |
+| UC3.5 | Admin ប្តូរស្ថានភាព (សកម្ម/ឈប់) | `PATCH /api/v1/guides/{id}/status` | ADMIN |
 | UC3.6 | រកមគ្គុទ្ទេសក៍ទំនេរក្នុងចន្លោះកាលបរិច្ឆេទ | `GET /api/v1/guides/available` | ADMIN |
 
 ## F3.2 Entity
@@ -519,7 +516,7 @@ DTO UpdateGuideStatusRequest:
     reason : String       @Size(max=255)
 
 DTO GuideResponse:
-    uuid, code, fullName, gender, phoneNumber, email
+    id, code, fullName, gender, phoneNumber, email
     languages, yearsExperience, bio, photoUrl, status
     assignedScheduleCount : long
 ```
@@ -529,7 +526,7 @@ DTO GuideResponse:
 ```
 REPOSITORY GuideRepository EXTENDS JpaRepository<Guide, Long>
 
-    findByUuidAndIsDeletedFalse(uuid)   -> Optional<Guide>
+    findByIdAndIsDeletedFalse(id)   -> Optional<Guide>
     existsByPhoneNumber(phone)          -> boolean
     existsByEmail(email)                -> boolean
     findAllByStatusAndIsDeletedFalse(status, pageable) -> Page<Guide>
@@ -559,7 +556,6 @@ FUNCTION createNew(req) -> GuideResponse:
         THROW ResponseStatusException(HttpStatus.CONFLICT, "អ៊ីមែលនេះមានក្នុងប្រព័ន្ធរួចហើយ")
 
     guide = mapper.toEntity(req)
-    SET guide.uuid      = randomUUID()
     SET guide.code      = generateSequentialCode("GD", guideRepo.countByIsDeletedFalse())
     SET guide.status    = ACTIVE
     SET guide.isDeleted = false
@@ -583,10 +579,10 @@ FUNCTION findAvailable(startDate, endDate) -> List<GuideResponse>:
 END FUNCTION
 
 
-FUNCTION changeStatus(uuid, req) -> GuideResponse:
+FUNCTION changeStatus(id, req) -> GuideResponse:
 
-    guide = guideRepo.findByUuidAndIsDeletedFalse(uuid)
-            ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញមគ្គុទ្ទេសក៍ uuid = " + uuid)
+    guide = guideRepo.findByIdAndIsDeletedFalse(id)
+            ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញមគ្គុទ្ទេសក៍ id = " + id)
 
     IF guide.status == req.status THEN
         THROW ResponseStatusException(HttpStatus.CONFLICT, "មគ្គុទ្ទេសក៍នេះស្ថិតក្នុងស្ថានភាព " + req.status + " រួចហើយ")
@@ -610,11 +606,11 @@ CONTROLLER GuideController  base = "/api/v1/guides"
 
     POST   "/"                 201   @Valid CreateGuideRequest
     GET    "/"                 200   status(optional), page=0, size=10
-    GET    "/{uuid}"           200
+    GET    "/{id}"           200
     GET    "/available"        200   startDate, endDate  (ISO yyyy-MM-dd)
-    PATCH  "/{uuid}"           200   @Valid UpdateGuideRequest
-    PATCH  "/{uuid}/status"    200   @Valid UpdateGuideStatusRequest
-    DELETE "/{uuid}"           204
+    PATCH  "/{id}"           200   @Valid UpdateGuideRequest
+    PATCH  "/{id}/status"    200   @Valid UpdateGuideStatusRequest
+    DELETE "/{id}"           204
 ```
 
 ---
@@ -629,10 +625,10 @@ CONTROLLER GuideController  base = "/api/v1/guides"
 |---|---|---|---|
 | UC4.1 | Admin បង្កើត Tour | `POST /api/v1/tours` | ADMIN |
 | UC4.2 | ស្វែងរក Tour (filter + sort + page) | `GET /api/v1/tours` | សាធារណៈ |
-| UC4.3 | មើលលម្អិត Tour | `GET /api/v1/tours/{uuid}` | សាធារណៈ |
-| UC4.4 | Admin កែ Tour | `PATCH /api/v1/tours/{uuid}` | ADMIN |
-| UC4.5 | Admin បិទ/បើកលក់ | `PATCH /api/v1/tours/{uuid}/publish` | ADMIN |
-| UC4.6 | Admin លុប Tour | `DELETE /api/v1/tours/{uuid}` | ADMIN |
+| UC4.3 | មើលលម្អិត Tour | `GET /api/v1/tours/{id}` | សាធារណៈ |
+| UC4.4 | Admin កែ Tour | `PATCH /api/v1/tours/{id}` | ADMIN |
+| UC4.5 | Admin បិទ/បើកលក់ | `PATCH /api/v1/tours/{id}/publish` | ADMIN |
+| UC4.6 | Admin លុប Tour | `DELETE /api/v1/tours/{id}` | ADMIN |
 | UC4.7 | មើល Tour ពេញនិយម (top rated) | `GET /api/v1/tours/popular` | សាធារណៈ |
 
 ## F4.2 Entity
@@ -688,8 +684,8 @@ DTO CreateTourRequest:
     maxGroupSize     : Integer      @NotNull @Min(1) @Max(200)
     difficulty       : Difficulty   @NotNull
     thumbnailUrl     : String       @Size(max=255)
-    categoryUuid     : String       @NotBlank
-    destinationUuids : Set<String>  @NotEmpty
+    categorySlug     : String       @NotBlank
+    destinationIds : Set<String>  @NotEmpty
     images           : List<TourImageRequest>  @Valid @Size(max=10)
 
 DTO TourImageRequest:
@@ -702,8 +698,8 @@ DTO TourImageResponse:
 
 DTO TourFilter:                     # query params សម្រាប់ UC4.2
     keyword          : String
-    categoryUuid     : String
-    destinationUuid  : String
+    categorySlug     : String
+    destinationId  : String
     minPrice         : BigDecimal
     maxPrice         : BigDecimal
     minDays          : Integer
@@ -713,7 +709,7 @@ DTO TourFilter:                     # query params សម្រាប់ UC4.2
     sortBy           : String       # price_asc | price_desc | rating | newest
 
 DTO TourCardResponse:               # សម្រាប់បញ្ជី (ស្រាល)
-    uuid, code, title, slug, thumbnailUrl
+    id, code, title, slug, thumbnailUrl
     price, durationDays, durationNights, difficulty
     categoryName, averageRating, reviewCount
     nextDepartureDate : LocalDate
@@ -733,7 +729,7 @@ DTO TourDetailResponse:             # សម្រាប់លម្អិត (�
 ```
 REPOSITORY TourRepository EXTENDS JpaRepository<Tour, Long>, JpaSpecificationExecutor<Tour>
 
-    findByUuidAndIsDeletedFalse(uuid)   -> Optional<Tour>
+    findByIdAndIsDeletedFalse(id)   -> Optional<Tour>
     findBySlugAndIsDeletedFalse(slug)   -> Optional<Tour>
     existsBySlug(slug)                  -> boolean
     countByIsDeletedFalse()             -> long
@@ -760,8 +756,8 @@ SPECIFICATION TourSpecs:
     isNotDeleted()              -> root.isDeleted = false
     isPublished()               -> root.isPublished = true
     titleOrDescLike(kw)         -> LOWER(root.title) LIKE %kw% OR LOWER(root.description) LIKE %kw%
-    hasCategory(uuid)           -> root.category.uuid = uuid
-    hasDestination(uuid)        -> JOIN root.destinations d WHERE d.uuid = uuid
+    hasCategory(slug)           -> root.category.slug = slug
+    hasDestination(id)        -> JOIN root.destinations d WHERE d.id = id
     priceBetween(min, max)      -> root.price >= min AND root.price <= max
     daysBetween(min, max)       -> root.durationDays BETWEEN min AND max
     hasDifficulty(d)            -> root.difficulty = d
@@ -783,18 +779,17 @@ FUNCTION createNew(req) -> TourDetailResponse:
         THROW ResponseStatusException(HttpStatus.BAD_REQUEST, "minGroupSize មិនអាចលើស maxGroupSize")
 
     # ២. Load ធនធានពាក់ព័ន្ធ
-    category = categoryRepo.findByUuidAndIsDeletedFalse(req.categoryUuid)
-               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញប្រភេទ uuid = " + req.categoryUuid)
+    category = categoryRepo.findBySlugAndIsDeletedFalse(req.categorySlug)
+               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញប្រភេទ slug = " + req.categorySlug)
 
-    destinations = destinationRepo.findAllByUuidIn(req.destinationUuids)
+    destinations = destinationRepo.findAllByIdIn(req.destinationIds)
 
-    IF destinations.size != req.destinationUuids.size THEN
-        missing = req.destinationUuids MINUS (destinations MAP uuid)
+    IF destinations.size != req.destinationIds.size THEN
+        missing = req.destinationIds MINUS (destinations MAP id)
         THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញទីតាំង៖ " + missing)
 
     # ៥. Build
     tour = mapper.toEntity(req)
-    SET tour.uuid          = randomUUID()
     SET tour.code          = generateSequentialCode("TR", tourRepo.countByIsDeletedFalse())
     SET tour.slug          = generateUniqueSlug(req.title)
     SET tour.category      = category
@@ -823,11 +818,11 @@ FUNCTION search(filter, page, size) -> PageResponse<TourCardResponse>:
     IF filter.keyword IS NOT EMPTY THEN
         spec = spec.and(titleOrDescLike(toLowerCase(filter.keyword)))
 
-    IF filter.categoryUuid IS NOT NULL THEN
-        spec = spec.and(hasCategory(filter.categoryUuid))
+    IF filter.categorySlug IS NOT NULL THEN
+        spec = spec.and(hasCategory(filter.categorySlug))
 
-    IF filter.destinationUuid IS NOT NULL THEN
-        spec = spec.and(hasDestination(filter.destinationUuid))
+    IF filter.destinationId IS NOT NULL THEN
+        spec = spec.and(hasDestination(filter.destinationId))
 
     IF filter.minPrice IS NOT NULL OR filter.maxPrice IS NOT NULL THEN
         IF filter.minPrice IS NOT NULL AND filter.maxPrice IS NOT NULL
@@ -859,10 +854,10 @@ FUNCTION search(filter, page, size) -> PageResponse<TourCardResponse>:
 END FUNCTION
 
 
-FUNCTION findByUuid(uuid) -> TourDetailResponse:
+FUNCTION findById(id) -> TourDetailResponse:
 
-    tour = tourRepo.findByUuidAndIsDeletedFalse(uuid)
-           ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញ Tour uuid = " + uuid)
+    tour = tourRepo.findByIdAndIsDeletedFalse(id)
+           ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញ Tour id = " + id)
 
     response = mapper.toDetailResponse(tour)
     SET response.upcomingSchedules = scheduleRepo.findOpenSchedulesByTour(tour.id, today())
@@ -874,10 +869,10 @@ FUNCTION findByUuid(uuid) -> TourDetailResponse:
 END FUNCTION
 
 
-FUNCTION publish(uuid, shouldPublish) -> TourDetailResponse:
+FUNCTION publish(id, shouldPublish) -> TourDetailResponse:
 
-    tour = tourRepo.findByUuidAndIsDeletedFalse(uuid)
-           ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញ Tour uuid = " + uuid)
+    tour = tourRepo.findByIdAndIsDeletedFalse(id)
+           ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញ Tour id = " + id)
 
     IF shouldPublish == true THEN
         # វិន័យ៖ បើកលក់បានលុះត្រាតែពេញលក្ខខណ្ឌ
@@ -898,10 +893,10 @@ FUNCTION publish(uuid, shouldPublish) -> TourDetailResponse:
 END FUNCTION
 
 
-FUNCTION deleteByUuid(uuid) -> void:
+FUNCTION deleteById(id) -> void:
 
-    tour = tourRepo.findByUuidAndIsDeletedFalse(uuid)
-           ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញ Tour uuid = " + uuid)
+    tour = tourRepo.findByIdAndIsDeletedFalse(id)
+           ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញ Tour id = " + id)
 
     activeBookings = bookingRepo.countActiveBookingsByTour(tour.id)
     IF activeBookings > 0 THEN
@@ -928,10 +923,10 @@ CONTROLLER TourController  base = "/api/v1/tours"
     POST   "/"                  201   @Valid CreateTourRequest
     GET    "/"                  200   TourFilter (query params), page=0, size=12
     GET    "/popular"           200   limit=10
-    GET    "/{uuid}"            200
-    PATCH  "/{uuid}"            200   @Valid UpdateTourRequest
-    PATCH  "/{uuid}/publish"    200   body { published : boolean }
-    DELETE "/{uuid}"            204
+    GET    "/{id}"            200
+    PATCH  "/{id}"            200   @Valid UpdateTourRequest
+    PATCH  "/{id}/publish"    200   body { published : boolean }
+    DELETE "/{id}"            204
 ```
 
 ---
@@ -945,11 +940,11 @@ CONTROLLER TourController  base = "/api/v1/tours"
 | Code | Use Case | Endpoint | សិទ្ធិ |
 |---|---|---|---|
 | UC5.1 | Admin បង្កើតកាលវិភាគ | `POST /api/v1/schedules` | ADMIN |
-| UC5.2 | មើលកាលវិភាគរបស់ Tour មួយ | `GET /api/v1/tours/{tourUuid}/schedules` | សាធារណៈ |
-| UC5.3 | មើលកាលវិភាគមួយ + កៅអីនៅសល់ | `GET /api/v1/schedules/{uuid}` | សាធារណៈ |
-| UC5.4 | Admin ចាត់ចែងមគ្គុទ្ទេសក៍ | `PATCH /api/v1/schedules/{uuid}/guide` | ADMIN |
-| UC5.5 | Admin បោះបង់កាលវិភាគ | `PATCH /api/v1/schedules/{uuid}/cancel` | ADMIN |
-| UC5.6 | Admin កែកាលវិភាគ | `PATCH /api/v1/schedules/{uuid}` | ADMIN |
+| UC5.2 | មើលកាលវិភាគរបស់ Tour មួយ | `GET /api/v1/tours/{tourId}/schedules` | សាធារណៈ |
+| UC5.3 | មើលកាលវិភាគមួយ + កៅអីនៅសល់ | `GET /api/v1/schedules/{id}` | សាធារណៈ |
+| UC5.4 | Admin ចាត់ចែងមគ្គុទ្ទេសក៍ | `PATCH /api/v1/schedules/{id}/guide` | ADMIN |
+| UC5.5 | Admin បោះបង់កាលវិភាគ | `PATCH /api/v1/schedules/{id}/cancel` | ADMIN |
+| UC5.6 | Admin កែកាលវិភាគ | `PATCH /api/v1/schedules/{id}` | ADMIN |
 
 ## F5.2 Entity
 
@@ -985,8 +980,8 @@ OPEN ──(កៅអីអស់)──> FULL ──(មានលុបចោ�
 
 ```
 DTO CreateScheduleRequest:
-    tourUuid       : String      @NotBlank
-    guideUuid      : String                      # optional
+    tourId       : String      @NotBlank
+    guideId      : String                      # optional
     departureDate  : LocalDate   @NotNull @FutureOrPresent
     returnDate     : LocalDate   @NotNull @Future
     departureTime  : LocalTime
@@ -995,15 +990,15 @@ DTO CreateScheduleRequest:
     priceOverride  : BigDecimal  @DecimalMin("0.01")
 
 DTO AssignGuideRequest:
-    guideUuid : String  @NotBlank
+    guideId : String  @NotBlank
 
 DTO CancelScheduleRequest:
     reason : String  @NotBlank @Size(max=500)
 
 DTO ScheduleResponse:
-    uuid, code
-    tourUuid, tourTitle
-    guideUuid, guideName
+    id, code
+    tourId, tourTitle
+    guideId, guideName
     departureDate, returnDate, departureTime, meetingPoint
     capacity
     bookedSeats     : int
@@ -1017,13 +1012,13 @@ DTO ScheduleResponse:
 ```
 REPOSITORY ScheduleRepository EXTENDS JpaRepository<TourSchedule, Long>
 
-    findByUuidAndIsDeletedFalse(uuid) -> Optional<TourSchedule>
+    findByIdAndIsDeletedFalse(id) -> Optional<TourSchedule>
     findByStatusInAndDepartureDateBefore(statuses, date) -> List<TourSchedule>
     findByStatusAndReturnDateBefore(status, date)        -> List<TourSchedule>
 
-    @Query findByUuidForUpdate(uuid) -> Optional<TourSchedule>
+    @Query findByIdForUpdate(id) -> Optional<TourSchedule>
         # @Lock(PESSIMISTIC_WRITE) — ចាក់សោជួរពេលកក់ ដើម្បីការពារ race condition
-        JPQL: SELECT s FROM TourSchedule s WHERE s.uuid = :uuid AND s.isDeleted = false
+        JPQL: SELECT s FROM TourSchedule s WHERE s.id = :id AND s.isDeleted = false
 
     @Query findOpenSchedulesByTour(tourId, fromDate) -> List<TourSchedule>
         JPQL: SELECT s FROM TourSchedule s
@@ -1064,8 +1059,8 @@ FUNCTION createNew(req) -> ScheduleResponse:
         THROW ResponseStatusException(HttpStatus.BAD_REQUEST, "ថ្ងៃចេញដំណើរមិនអាចជាអតីតកាល")
 
     # ២. Load
-    tour = tourRepo.findByUuidAndIsDeletedFalse(req.tourUuid)
-           ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញ Tour uuid = " + req.tourUuid)
+    tour = tourRepo.findByIdAndIsDeletedFalse(req.tourId)
+           ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញ Tour id = " + req.tourId)
 
     # ៣. Check Rules
     actualDays = daysBetween(req.departureDate, req.returnDate) + 1
@@ -1080,8 +1075,8 @@ FUNCTION createNew(req) -> ScheduleResponse:
         THROW ResponseStatusException(HttpStatus.BAD_REQUEST, "capacity មិនអាចតិចជាង minGroupSize របស់ Tour")
 
     guide = NULL
-    IF req.guideUuid IS NOT NULL THEN
-        guide = guideRepo.findByUuidAndIsDeletedFalse(req.guideUuid)
+    IF req.guideId IS NOT NULL THEN
+        guide = guideRepo.findByIdAndIsDeletedFalse(req.guideId)
                 ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញមគ្គុទ្ទេសក៍")
 
         IF guide.status != ACTIVE THEN
@@ -1092,7 +1087,6 @@ FUNCTION createNew(req) -> ScheduleResponse:
 
     # ៥. Build
     schedule = NEW TourSchedule
-    SET schedule.uuid          = randomUUID()
     SET schedule.code          = generateDateCode("SC", req.departureDate)
     SET schedule.tour          = tour
     SET schedule.guide         = guide
@@ -1121,15 +1115,15 @@ FUNCTION toResponseWithSeats(schedule) -> ScheduleResponse:
 END FUNCTION
 
 
-FUNCTION assignGuide(uuid, req) -> ScheduleResponse:
+FUNCTION assignGuide(id, req) -> ScheduleResponse:
 
-    schedule = scheduleRepo.findByUuidAndIsDeletedFalse(uuid)
-               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញកាលវិភាគ uuid = " + uuid)
+    schedule = scheduleRepo.findByIdAndIsDeletedFalse(id)
+               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញកាលវិភាគ id = " + id)
 
     IF schedule.status IN (CANCELLED, COMPLETED, DEPARTED) THEN
         THROW ResponseStatusException(HttpStatus.CONFLICT, "មិនអាចប្តូរមគ្គុទ្ទេសក៍លើកាលវិភាគស្ថានភាព " + schedule.status)
 
-    guide = guideRepo.findByUuidAndIsDeletedFalse(req.guideUuid)
+    guide = guideRepo.findByIdAndIsDeletedFalse(req.guideId)
             ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញមគ្គុទ្ទេសក៍")
 
     IF guide.status != ACTIVE THEN
@@ -1145,10 +1139,10 @@ FUNCTION assignGuide(uuid, req) -> ScheduleResponse:
 END FUNCTION
 
 
-FUNCTION cancel(uuid, req) -> ScheduleResponse:      # @Transactional
+FUNCTION cancel(id, req) -> ScheduleResponse:      # @Transactional
 
-    schedule = scheduleRepo.findByUuidAndIsDeletedFalse(uuid)
-               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញកាលវិភាគ uuid = " + uuid)
+    schedule = scheduleRepo.findByIdAndIsDeletedFalse(id)
+               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញកាលវិភាគ id = " + id)
 
     IF schedule.status == CANCELLED THEN
         THROW ResponseStatusException(HttpStatus.CONFLICT, "កាលវិភាគនេះត្រូវបានបោះបង់រួចហើយ")
@@ -1203,15 +1197,15 @@ END FUNCTION
 CONTROLLER ScheduleController  base = "/api/v1/schedules"
 
     POST   "/"                  201   @Valid CreateScheduleRequest
-    GET    "/{uuid}"            200
-    PATCH  "/{uuid}"            200   @Valid UpdateScheduleRequest
-    PATCH  "/{uuid}/guide"      200   @Valid AssignGuideRequest
-    PATCH  "/{uuid}/cancel"     200   @Valid CancelScheduleRequest
+    GET    "/{id}"            200
+    PATCH  "/{id}"            200   @Valid UpdateScheduleRequest
+    PATCH  "/{id}/guide"      200   @Valid AssignGuideRequest
+    PATCH  "/{id}/cancel"     200   @Valid CancelScheduleRequest
 
-CONTROLLER TourScheduleController  base = "/api/v1/tours/{tourUuid}/schedules"
+CONTROLLER TourScheduleController  base = "/api/v1/tours/{tourId}/schedules"
 
     GET    "/"                  200   fromDate(optional, default today)
-           -> RETURN scheduleService.findByTour(tourUuid, fromDate)
+           -> RETURN scheduleService.findByTour(tourId, fromDate)
 ```
 
 ---
@@ -1228,8 +1222,8 @@ CONTROLLER TourScheduleController  base = "/api/v1/tours/{tourUuid}/schedules"
 | UC6.2 | មើលប្រវត្តិរូបខ្លួនឯង | `GET /api/v1/customers/me` | CUSTOMER |
 | UC6.3 | កែប្រវត្តិរូបខ្លួនឯង | `PATCH /api/v1/customers/me` | CUSTOMER |
 | UC6.4 | Admin មើលបញ្ជីអតិថិជន | `GET /api/v1/customers` | ADMIN |
-| UC6.5 | Admin មើលអតិថិជនម្នាក់ | `GET /api/v1/customers/{uuid}` | ADMIN |
-| UC6.6 | Admin ផ្អាកគណនី | `PATCH /api/v1/customers/{uuid}/status` | ADMIN |
+| UC6.5 | Admin មើលអតិថិជនម្នាក់ | `GET /api/v1/customers/{id}` | ADMIN |
+| UC6.6 | Admin ផ្អាកគណនី | `PATCH /api/v1/customers/{id}/status` | ADMIN |
 
 ## F6.2 Entity
 
@@ -1273,7 +1267,7 @@ DTO UpdateCustomerStatusRequest:
     reason : String          @Size(max=255)
 
 DTO CustomerResponse:
-    uuid, username, fullName, email, phoneNumber
+    id, username, fullName, email, phoneNumber
     gender, dateOfBirth, nationality, address, avatarUrl, status
     totalBookings    : long
     completedTours   : long
@@ -1285,7 +1279,7 @@ DTO CustomerResponse:
 ```
 REPOSITORY CustomerRepository EXTENDS JpaRepository<Customer, Long>
 
-    findByUuidAndIsDeletedFalse(uuid)     -> Optional<Customer>
+    findByIdAndIsDeletedFalse(id)     -> Optional<Customer>
     findByUsernameAndIsDeletedFalse(u)    -> Optional<Customer>
     existsByUsername(username)            -> boolean
     existsByEmail(email)                  -> boolean
@@ -1323,7 +1317,6 @@ FUNCTION register(req) -> CustomerResponse:
 
     # ៥. Build
     customer = mapper.toEntity(req)
-    SET customer.uuid      = randomUUID()
     SET customer.status    = ACTIVE
     SET customer.isDeleted = false
 
@@ -1371,10 +1364,10 @@ FUNCTION updateMe(username, req) -> CustomerResponse:
 END FUNCTION
 
 
-FUNCTION changeStatus(uuid, req) -> CustomerResponse:
+FUNCTION changeStatus(id, req) -> CustomerResponse:
 
-    customer = customerRepo.findByUuidAndIsDeletedFalse(uuid)
-               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញអតិថិជន uuid = " + uuid)
+    customer = customerRepo.findByIdAndIsDeletedFalse(id)
+               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញអតិថិជន id = " + id)
 
     IF customer.status == req.status THEN
         THROW ResponseStatusException(HttpStatus.CONFLICT, "គណនីនេះស្ថិតក្នុងស្ថានភាព " + req.status + " រួចហើយ")
@@ -1406,8 +1399,8 @@ CONTROLLER CustomerController  base = "/api/v1/customers"
            -> RETURN service.findMe(auth.getName())
     PATCH  "/me"               200   @Valid PatchCustomerRequest, Authentication auth
     GET    "/"                 200   keyword(optional), page=0, size=10       [ADMIN]
-    GET    "/{uuid}"           200                                            [ADMIN]
-    PATCH  "/{uuid}/status"    200   @Valid UpdateCustomerStatusRequest       [ADMIN]
+    GET    "/{id}"           200                                            [ADMIN]
+    PATCH  "/{id}/status"    200   @Valid UpdateCustomerStatusRequest       [ADMIN]
 ```
 
 ---
@@ -1505,7 +1498,7 @@ END FUNCTION
 
 ```
 DTO CreateBookingRequest:
-    scheduleUuid    : String              @NotBlank
+    scheduleId    : String              @NotBlank
     numberOfPeople  : Integer             @NotNull @Min(1) @Max(20)
     note            : String              @Size(max=500)
     passengers      : List<PassengerRequest>  @NotEmpty @Valid
@@ -1526,8 +1519,8 @@ DTO UpdatePassengersRequest:
 
 DTO BookingResponse:
     code, status
-    tourTitle, tourUuid
-    scheduleUuid, departureDate, returnDate, meetingPoint
+    tourTitle, tourId
+    scheduleId, departureDate, returnDate, meetingPoint
     numberOfPeople
     unitPrice, subTotal, discountAmount, totalPrice
     paidAmount, remainingAmount
@@ -1598,8 +1591,8 @@ FUNCTION bookTour(req, username) -> BookingDetailResponse:      # @Transactional
                ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញគណនីរបស់អ្នក")
 
     # ចាក់សោជួរ (pessimistic lock) ដើម្បីការពារ race condition ពេលកក់ព្រមគ្នា
-    schedule = scheduleRepo.findByUuidForUpdate(req.scheduleUuid)
-               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញកាលវិភាគ uuid = " + req.scheduleUuid)
+    schedule = scheduleRepo.findByIdForUpdate(req.scheduleId)
+               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញកាលវិភាគ id = " + req.scheduleId)
 
     tour = schedule.tour
 
@@ -1639,7 +1632,6 @@ FUNCTION bookTour(req, username) -> BookingDetailResponse:      # @Transactional
 
     # ═══ ៥. BUILD ═══
     booking = NEW Booking
-    SET booking.uuid            = randomUUID()
     SET booking.code            = generateBookingCode()      # BK-20260912-0001
     SET booking.customer        = customer
     SET booking.schedule        = schedule
@@ -2080,7 +2072,6 @@ FUNCTION pay(bookingCode, req, username) -> PaymentResponse:    # @Transactional
 
     # ═══ ៥. BUILD ═══
     payment = NEW Payment
-    SET payment.uuid          = randomUUID()
     SET payment.referenceNo   = generatePaymentRef()          # PM-20260912-0001
     SET payment.booking       = booking
     SET payment.type          = req.type
@@ -2197,7 +2188,6 @@ FUNCTION createRefund(booking, amount, reason) -> PaymentResponse:   # @Transact
         THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "សងវិញបានច្រើនបំផុត " + maxRefundable)
 
     refund = NEW Payment
-    SET refund.uuid        = randomUUID()
     SET refund.referenceNo = generatePaymentRef()
     SET refund.booking     = booking
     SET refund.type        = REFUND
@@ -2306,12 +2296,12 @@ CONTROLLER PaymentController  base = "/api/v1/payments"
 | Code | Use Case | Endpoint | សិទ្ធិ |
 |---|---|---|---|
 | UC9.1 | អតិថិជនផ្តល់ការវាយតម្លៃ | `POST /api/v1/bookings/{code}/review` | CUSTOMER |
-| UC9.2 | មើលការវាយតម្លៃរបស់ Tour | `GET /api/v1/tours/{uuid}/reviews` | សាធារណៈ |
-| UC9.3 | អតិថិជនកែការវាយតម្លៃ | `PATCH /api/v1/reviews/{uuid}` | CUSTOMER |
-| UC9.4 | អតិថិជនលុបការវាយតម្លៃ | `DELETE /api/v1/reviews/{uuid}` | CUSTOMER |
-| UC9.5 | Admin ឆ្លើយតបការវាយតម្លៃ | `POST /api/v1/reviews/{uuid}/reply` | ADMIN |
-| UC9.6 | Admin លាក់ការវាយតម្លៃមិនសមរម្យ | `PATCH /api/v1/reviews/{uuid}/hide` | ADMIN |
-| UC9.7 | មើលសង្ខេបពិន្ទុ (រាប់តាមផ្កាយ) | `GET /api/v1/tours/{uuid}/reviews/summary` | សាធារណៈ |
+| UC9.2 | មើលការវាយតម្លៃរបស់ Tour | `GET /api/v1/tours/{id}/reviews` | សាធារណៈ |
+| UC9.3 | អតិថិជនកែការវាយតម្លៃ | `PATCH /api/v1/reviews/{id}` | CUSTOMER |
+| UC9.4 | អតិថិជនលុបការវាយតម្លៃ | `DELETE /api/v1/reviews/{id}` | CUSTOMER |
+| UC9.5 | Admin ឆ្លើយតបការវាយតម្លៃ | `POST /api/v1/reviews/{id}/reply` | ADMIN |
+| UC9.6 | Admin លាក់ការវាយតម្លៃមិនសមរម្យ | `PATCH /api/v1/reviews/{id}/hide` | ADMIN |
+| UC9.7 | មើលសង្ខេបពិន្ទុ (រាប់តាមផ្កាយ) | `GET /api/v1/tours/{id}/reviews/summary` | សាធារណៈ |
 
 ## F9.2 Entity
 
@@ -2364,8 +2354,8 @@ DTO HideReviewRequest:
     reason : String  @NotBlank @Size(max=255)
 
 DTO ReviewResponse:
-    uuid, bookingCode
-    tourUuid, tourTitle
+    id, bookingCode
+    tourId, tourTitle
     customerName        # បង្ហាញឈ្មោះខ្លី ឧ. "សុខ ដ***"
     customerAvatarUrl
     rating, guideRating, valueRating
@@ -2374,7 +2364,7 @@ DTO ReviewResponse:
     createdAt
 
 DTO ReviewSummaryResponse:
-    tourUuid
+    tourId
     averageRating       : Double
     totalReviews        : long
     averageGuideRating  : Double
@@ -2388,7 +2378,7 @@ DTO ReviewSummaryResponse:
 ```
 REPOSITORY ReviewRepository EXTENDS JpaRepository<Review, Long>
 
-    findByUuidAndIsDeletedFalse(uuid)  -> Optional<Review>
+    findByIdAndIsDeletedFalse(id)  -> Optional<Review>
     existsByBookingId(bookingId)       -> boolean
     findByBookingId(bookingId)         -> Optional<Review>
 
@@ -2447,7 +2437,6 @@ FUNCTION createNew(bookingCode, req, username) -> ReviewResponse:      # @Transa
 
     # ═══ ៥. BUILD ═══
     review = mapper.toEntity(req)
-    SET review.uuid      = randomUUID()
     SET review.booking   = booking
     SET review.tour      = booking.schedule.tour
     SET review.customer  = booking.customer
@@ -2474,10 +2463,10 @@ FUNCTION recalculateTourRating(tourId) -> void:
 END FUNCTION
 
 
-FUNCTION updateByUuid(uuid, req, username) -> ReviewResponse:             # @Transactional
+FUNCTION updateById(id, req, username) -> ReviewResponse:             # @Transactional
 
-    review = reviewRepo.findByUuidAndIsDeletedFalse(uuid)
-             ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញការវាយតម្លៃ uuid = " + uuid)
+    review = reviewRepo.findByIdAndIsDeletedFalse(id)
+             ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញការវាយតម្លៃ id = " + id)
 
     IF review.customer.username != username THEN
         THROW ResponseStatusException(HttpStatus.FORBIDDEN, "អ្នកមិនមានសិទ្ធិកែការវាយតម្លៃនេះទេ")
@@ -2502,10 +2491,10 @@ FUNCTION updateByUuid(uuid, req, username) -> ReviewResponse:             # @Tra
 END FUNCTION
 
 
-FUNCTION deleteByUuid(uuid, username) -> void:                            # @Transactional
+FUNCTION deleteById(id, username) -> void:                            # @Transactional
 
-    review = reviewRepo.findByUuidAndIsDeletedFalse(uuid)
-             ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញការវាយតម្លៃ uuid = " + uuid)
+    review = reviewRepo.findByIdAndIsDeletedFalse(id)
+             ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញការវាយតម្លៃ id = " + id)
 
     IF review.customer.username != username THEN
         THROW ResponseStatusException(HttpStatus.FORBIDDEN, "អ្នកមិនមានសិទ្ធិលុបការវាយតម្លៃនេះទេ")
@@ -2518,10 +2507,10 @@ FUNCTION deleteByUuid(uuid, username) -> void:                            # @Tra
 END FUNCTION
 
 
-FUNCTION hide(uuid, req, adminUsername) -> ReviewResponse:          # [ADMIN]
+FUNCTION hide(id, req, adminUsername) -> ReviewResponse:          # [ADMIN]
 
-    review = reviewRepo.findByUuidAndIsDeletedFalse(uuid)
-             ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញការវាយតម្លៃ uuid = " + uuid)
+    review = reviewRepo.findByIdAndIsDeletedFalse(id)
+             ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញការវាយតម្លៃ id = " + id)
 
     IF review.isVisible == false THEN
         THROW ResponseStatusException(HttpStatus.CONFLICT, "ការវាយតម្លៃនេះត្រូវបានលាក់រួចហើយ")
@@ -2537,10 +2526,10 @@ FUNCTION hide(uuid, req, adminUsername) -> ReviewResponse:          # [ADMIN]
 END FUNCTION
 
 
-FUNCTION reply(uuid, req, adminUsername) -> ReviewResponse:         # [ADMIN]
+FUNCTION reply(id, req, adminUsername) -> ReviewResponse:         # [ADMIN]
 
-    review = reviewRepo.findByUuidAndIsDeletedFalse(uuid)
-             ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញការវាយតម្លៃ uuid = " + uuid)
+    review = reviewRepo.findByIdAndIsDeletedFalse(id)
+             ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញការវាយតម្លៃ id = " + id)
 
     IF review.adminReply IS NOT EMPTY THEN
         THROW ResponseStatusException(HttpStatus.CONFLICT, "ការវាយតម្លៃនេះមានការឆ្លើយតបរួចហើយ — សូមប្រើ PATCH ដើម្បីកែ")
@@ -2557,10 +2546,10 @@ FUNCTION reply(uuid, req, adminUsername) -> ReviewResponse:         # [ADMIN]
 END FUNCTION
 
 
-FUNCTION findByTour(tourUuid, page, size) -> PageResponse<ReviewResponse>:
+FUNCTION findByTour(tourId, page, size) -> PageResponse<ReviewResponse>:
 
-    tour = tourRepo.findByUuidAndIsDeletedFalse(tourUuid)
-           ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញ Tour uuid = " + tourUuid)
+    tour = tourRepo.findByIdAndIsDeletedFalse(tourId)
+           ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញ Tour id = " + tourId)
 
     pageable = buildPageable(page, size, "createdAt", DESC)
     result   = reviewRepo.findVisibleByTour(tour.id, pageable)
@@ -2570,10 +2559,10 @@ FUNCTION findByTour(tourUuid, page, size) -> PageResponse<ReviewResponse>:
 END FUNCTION
 
 
-FUNCTION getSummary(tourUuid) -> ReviewSummaryResponse:
+FUNCTION getSummary(tourId) -> ReviewSummaryResponse:
 
-    tour = tourRepo.findByUuidAndIsDeletedFalse(tourUuid)
-           ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញ Tour uuid = " + tourUuid)
+    tour = tourRepo.findByIdAndIsDeletedFalse(tourId)
+           ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញ Tour id = " + tourId)
 
     rows  = reviewRepo.countByStars(tour.id)      # [[5,120],[4,45],...]
     total = SUM of counts IN rows
@@ -2586,7 +2575,7 @@ FUNCTION getSummary(tourUuid) -> ReviewSummaryResponse:
         SET starPercentages[star] = IF total > 0 THEN round(count * 100.0 / total, 1) ELSE 0
 
     summary = NEW ReviewSummaryResponse
-    SET summary.tourUuid           = tourUuid
+    SET summary.tourId           = tourId
     SET summary.averageRating      = round(reviewRepo.averageRating(tour.id), 1)
     SET summary.totalReviews       = total
     SET summary.averageGuideRating = round(reviewRepo.averageGuideRating(tour.id), 1)
@@ -2606,17 +2595,17 @@ CONTROLLER BookingReviewController  base = "/api/v1/bookings/{code}"
 
     POST   "/review"           201   @Valid CreateReviewRequest, Authentication
 
-CONTROLLER TourReviewController  base = "/api/v1/tours/{tourUuid}/reviews"
+CONTROLLER TourReviewController  base = "/api/v1/tours/{tourId}/reviews"
 
     GET    "/"                 200   page=0, size=10
     GET    "/summary"          200
 
 CONTROLLER ReviewController  base = "/api/v1/reviews"
 
-    PATCH  "/{uuid}"           200   @Valid UpdateReviewRequest, Authentication
-    DELETE "/{uuid}"           204   Authentication
-    POST   "/{uuid}/reply"     201   @Valid ReplyReviewRequest        [ADMIN]
-    PATCH  "/{uuid}/hide"      200   @Valid HideReviewRequest         [ADMIN]
+    PATCH  "/{id}"           200   @Valid UpdateReviewRequest, Authentication
+    DELETE "/{id}"           204   Authentication
+    POST   "/{id}/reply"     201   @Valid ReplyReviewRequest        [ADMIN]
+    PATCH  "/{id}/hide"      200   @Valid HideReviewRequest         [ADMIN]
 ```
 
 ---
@@ -2665,9 +2654,6 @@ HANDLER GlobalAppException:            # @RestControllerAdvice
 ```
 UTIL GenerateUtils:
 
-    FUNCTION randomUUID() -> String
-        RETURN UUID.randomUUID().toString()
-
     FUNCTION generateSequentialCode(prefix, currentCount) -> String
         RETURN prefix + "-" + padLeft(currentCount + 1, 4, '0')     # GD-0001
 
@@ -2700,7 +2686,7 @@ CONFIG SecurityConfig:
         GET  /api/v1/tours/**
         GET  /api/v1/categories/**
         GET  /api/v1/destinations/**
-        GET  /api/v1/guides/{uuid}
+        GET  /api/v1/guides/{id}
         POST /api/v1/customers/register
         /swagger-ui/**, /v3/api-docs/**
 

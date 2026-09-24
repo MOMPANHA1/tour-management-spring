@@ -21,11 +21,11 @@ import java.time.LocalTime;
  */
 public record CreateScheduleRequest(
 
-        @NotBlank(message = "Tour is required")
-        String tourUuid,
+        @NotNull(message = "Tour is required")
+        Long tourId,
 
         /** ជម្រើស — ចាត់តាំងមគ្គុទ្ទេសក៍ក្រោយបាន។ */
-        String guideUuid,
+        Long guideId,
 
         @NotNull(message = "Departure date is required")
         @FutureOrPresent(message = "Departure date cannot be in the past")

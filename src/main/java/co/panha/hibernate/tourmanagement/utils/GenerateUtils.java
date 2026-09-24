@@ -5,11 +5,10 @@ import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
-import java.util.UUID;
 import java.util.function.Predicate;
 
 /**
- * ការបង្កើតតម្លៃ — UUID, លេខកូដអាជីវកម្ម, slug។
+ * ការបង្កើតតម្លៃ — លេខកូដអាជីវកម្ម និង slug។
  */
 public final class GenerateUtils {
 
@@ -21,11 +20,6 @@ public final class GenerateUtils {
 
     private GenerateUtils() {
         // ថ្នាក់ឧបករណ៍ — មិនបង្កើត instance
-    }
-
-    /** សោសាធារណៈសម្រាប់ {@code BaseEntity.uuid}។ */
-    public static String randomUUID() {
-        return UUID.randomUUID().toString();
     }
 
     /**

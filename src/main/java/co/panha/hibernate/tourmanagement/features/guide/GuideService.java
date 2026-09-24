@@ -24,14 +24,14 @@ public interface GuideService {
     List<GuideResponse> findAvailable(LocalDate startDate, LocalDate endDate);
 
     /** UC3.3 — ប្រវត្តិរូបមគ្គុទ្ទេសក៍ម្នាក់។ */
-    GuideResponse findByUuid(String uuid);
+    GuideResponse findById(Long id);
 
     /** UC3.4 — កែព័ត៌មាន (PATCH)។ */
-    GuideResponse updateByUuid(String uuid, UpdateGuideRequest request);
+    GuideResponse updateById(Long id, UpdateGuideRequest request);
 
     /** UC3.5 — ប្តូរស្ថានភាព។ */
-    GuideResponse changeStatus(String uuid, UpdateGuideStatusRequest request);
+    GuideResponse changeStatus(Long id, UpdateGuideStatusRequest request);
 
     /** លុបមគ្គុទ្ទេសក៍ (soft delete)។ */
-    void deleteByUuid(String uuid);
+    void deleteById(Long id);
 }

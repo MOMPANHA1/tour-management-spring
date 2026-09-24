@@ -18,19 +18,19 @@ public interface ScheduleService {
     ScheduleResponse createNew(CreateScheduleRequest request);
 
     /** UC5.2 — កាលវិភាគបើកទទួលការកក់របស់ Tour មួយ។ */
-    List<ScheduleResponse> findByTour(String tourUuid, LocalDate fromDate);
+    List<ScheduleResponse> findByTour(Long tourId, LocalDate fromDate);
 
     /** UC5.3 — កាលវិភាគមួយ + កៅអីនៅសល់។ */
-    ScheduleResponse findByUuid(String uuid);
+    ScheduleResponse findById(Long id);
 
     /** UC5.6 — កែកាលវិភាគ (PATCH)។ */
-    ScheduleResponse updateByUuid(String uuid, UpdateScheduleRequest request);
+    ScheduleResponse updateById(Long id, UpdateScheduleRequest request);
 
     /** UC5.4 — ចាត់តាំងមគ្គុទ្ទេសក៍។ */
-    ScheduleResponse assignGuide(String uuid, AssignGuideRequest request);
+    ScheduleResponse assignGuide(Long id, AssignGuideRequest request);
 
     /** UC5.5 — បោះបង់កាលវិភាគ។ */
-    ScheduleResponse cancel(String uuid, CancelScheduleRequest request);
+    ScheduleResponse cancel(Long id, CancelScheduleRequest request);
 
     /**
      * Job ប្រចាំថ្ងៃ — រំកិលស្ថានភាពតាមកាលបរិច្ឆេទ។

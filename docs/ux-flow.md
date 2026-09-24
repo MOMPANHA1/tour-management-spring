@@ -88,7 +88,7 @@ GET /api/v1/categories
 ### ២.២ អេក្រង់ត្រង (Filter)
 
 ```
-GET /api/v1/tours?keyword=&categoryUuid=&minPrice=&maxPrice=
+GET /api/v1/tours?keyword=&categorySlug=&minPrice=&maxPrice=
                  &minDays=&maxDays=&difficulty=&departureAfter=&sortBy=price_asc
 ```
 
@@ -111,7 +111,7 @@ GET /api/v1/tours?keyword=&categoryUuid=&minPrice=&maxPrice=
 ### ២.៣ អេក្រង់លម្អិត Tour
 
 ```
-GET /api/v1/tours/{uuid}   -> TourDetailResponse
+GET /api/v1/tours/{id}   -> TourDetailResponse
 ```
 
 នេះជា **អេក្រង់សម្រេចចិត្ត** — `TourDetailResponse` ផ្ទុកអ្វីៗគ្រប់យ៉ាងក្នុង **request តែមួយ** ដើម្បីកុំឲ្យទំព័ររង់ចាំច្រើនដង៖
@@ -163,7 +163,7 @@ POST /api/v1/customers/register   -> RegisterCustomerRequest
 ១. អ្នកប្រើចុច [កក់] ខណៈមិនទាន់ login
        ↓
 ២. បង្ហាញប្រអប់ "ត្រូវមានគណនីសិន"  [ចូល] [ចុះឈ្មោះ]
-       ↓  ← ត្រូវចាំ scheduleUuid ដែលគាត់ចង់កក់
+       ↓  ← ត្រូវចាំ scheduleId ដែលគាត់ចង់កក់
 ៣. ទម្រង់ចុះឈ្មោះ
        ↓
 ៤. ចុះឈ្មោះជោគជ័យ → status = ACTIVE
@@ -236,7 +236,7 @@ POST /api/v1/customers/register   -> RegisterCustomerRequest
 | **BR4** 403 | គណនីត្រូវ Admin ផ្អាក | "គណនីរបស់អ្នកត្រូវបានផ្អាក សូមទាក់ទងយើង" |
 | **BR5** 409 | អ្នកប្រើកក់រួចហើយ (ចុច ២ ដង ឬ tab ២) | បញ្ជូនទៅទំព័រការកក់ដែលមានស្រាប់ |
 
-> ⭐ **ការពារ race condition**: pseudo-code ប្រើ `findByUuidForUpdate` (pessimistic lock)។ ពេលមនុស្ស ១០ នាក់ចុច [កក់] ព្រមគ្នាលើកៅអី ៨ — ២ នាក់ចុងក្រោយ**ប្រាកដជាបរាជ័យត្រឹមត្រូវ** មិនមែនលក់លើសទេ។ UX ត្រូវបង្ហាញ spinner "កំពុងរក្សាកៅអី..." ហើយ**បិទប៊ូតុងភ្លាមបន្ទាប់ពីចុចលើកទី ១**។
+> ⭐ **ការពារ race condition**: pseudo-code ប្រើ `findByIdForUpdate` (pessimistic lock)។ ពេលមនុស្ស ១០ នាក់ចុច [កក់] ព្រមគ្នាលើកៅអី ៨ — ២ នាក់ចុងក្រោយ**ប្រាកដជាបរាជ័យត្រឹមត្រូវ** មិនមែនលក់លើសទេ។ UX ត្រូវបង្ហាញ spinner "កំពុងរក្សាកៅអី..." ហើយ**បិទប៊ូតុងភ្លាមបន្ទាប់ពីចុចលើកទី ១**។
 
 ### ៤.៥ លទ្ធផលបន្ទាប់ពីកក់ជោគជ័យ
 
@@ -431,8 +431,8 @@ Review បង្កើត ─> recalculateRating(tourId)
 
 | សកម្មភាព | ឥទ្ធិពលលើអ្នកប្រើ |
 |---|---|
-| `POST /reviews/{uuid}/reply` | ចម្លើយបង្ហាញក្រោមមតិ ជាមួយស្លាក "ការឆ្លើយតបពីអ្នកគ្រប់គ្រង" — បង្កើនទំនុកចិត្តខ្លាំង |
-| `PATCH /reviews/{uuid}/hide` | `isVisible = false` → បាត់ពីសាធារណៈ **តែម្ចាស់នៅឃើញ** ព្រមទាំង `hiddenReason` |
+| `POST /reviews/{id}/reply` | ចម្លើយបង្ហាញក្រោមមតិ ជាមួយស្លាក "ការឆ្លើយតបពីអ្នកគ្រប់គ្រង" — បង្កើនទំនុកចិត្តខ្លាំង |
+| `PATCH /reviews/{id}/hide` | `isVisible = false` → បាត់ពីសាធារណៈ **តែម្ចាស់នៅឃើញ** ព្រមទាំង `hiddenReason` |
 
 > ⚠️ ការលាក់មិនគួរប៉ះពាល់ `averageRating` ទេ បើមិនដូច្នេះ Admin អាចលាក់មតិអវិជ្ជមានដើម្បីលើកពិន្ទុ។ `recalculateRating` បច្ចុប្បន្ន **មិនត្រង `isVisible`** ទេ — នេះជាការសម្រេចចិត្តត្រឹមត្រូវ សូមរក្សាទុក។
 
@@ -475,7 +475,7 @@ syncBookingPaidAmount()   ជូនដំណឹងអតិថិជន
 ### ៨.៣ ចាត់តាំងមគ្គុទ្ទេសក៍ (F5 + F3)
 
 ```
-PATCH /api/v1/schedules/{uuid}/guide
+PATCH /api/v1/schedules/{id}/guide
 ```
 
 Repository មាន `hasGuideConflict(guideId, start, end, excludeScheduleId)` — មានន័យថា **បញ្ជីជម្រើសមគ្គុទ្ទេសក៍ត្រូវច្រោះរួចជាស្រេច**៖

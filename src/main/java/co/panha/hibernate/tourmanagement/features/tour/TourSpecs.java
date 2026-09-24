@@ -42,8 +42,8 @@ public final class TourSpecs {
         );
     }
 
-    public static Specification<Tour> hasCategory(String categoryUuid) {
-        return (root, query, cb) -> cb.equal(root.get("category").get("uuid"), categoryUuid);
+    public static Specification<Tour> hasCategory(Long categoryId) {
+        return (root, query, cb) -> cb.equal(root.get("category").get("id"), categoryId);
     }
 
     /**
@@ -52,13 +52,13 @@ public final class TourSpecs {
      * <p>{@code query.distinct(true)} ចាំបាច់ — ការ join តារាង M:N បង្កើតជួរស្ទួន
      * ពេល Tour មួយភ្ជាប់ទីតាំងច្រើន ហើយ {@code totalElements} នឹងរាប់លើស។
      */
-    public static Specification<Tour> hasDestination(String destinationUuid) {
+    public static Specification<Tour> hasDestination(Long destinationId) {
         return (root, query, cb) -> {
             if (query != null) {
                 query.distinct(true);
             }
             Join<Tour, Destination> destinations = root.join("destinations");
-            return cb.equal(destinations.get("uuid"), destinationUuid);
+            return cb.equal(destinations.get("id"), destinationId);
         };
     }
 

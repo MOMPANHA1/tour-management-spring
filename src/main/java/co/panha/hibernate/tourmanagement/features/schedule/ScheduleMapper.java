@@ -15,9 +15,9 @@ import java.math.BigDecimal;
 @Mapper(componentModel = "spring")
 public interface ScheduleMapper {
 
-    @Mapping(target = "tourUuid", source = "schedule.tour.uuid")
+    @Mapping(target = "tourId", source = "schedule.tour.id")
     @Mapping(target = "tourTitle", source = "schedule.tour.title")
-    @Mapping(target = "guideUuid", source = "schedule.guide.uuid")
+    @Mapping(target = "guideId", source = "schedule.guide.id")
     @Mapping(target = "guideName", source = "schedule.guide.fullName")
     @Mapping(target = "bookedSeats", source = "bookedSeats")
     @Mapping(target = "availableSeats", source = "availableSeats")

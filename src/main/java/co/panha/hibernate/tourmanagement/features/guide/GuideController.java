@@ -40,7 +40,7 @@ public class GuideController {
     /**
      * UC3.6 — មគ្គុទ្ទេសក៍ទំនេរក្នុងចន្លោះថ្ងៃ។
      *
-     * <p>ត្រូវប្រកាស<b>មុន</b> {@code @GetMapping("/{uuid}")} មិនចាំបាច់ទេ (Spring ផ្គូផ្គងផ្លូវ
+     * <p>ត្រូវប្រកាស<b>មុន</b> {@code @GetMapping("/{id}")} មិនចាំបាច់ទេ (Spring ផ្គូផ្គងផ្លូវ
      * ជាក់លាក់មុនអថេរ) តែដាក់ជិតគ្នាឲ្យអានងាយ។
      */
     @GetMapping("/available")
@@ -64,26 +64,26 @@ public class GuideController {
         return guideService.findAll(status, page, size);
     }
 
-    @GetMapping("/{uuid}")
-    public GuideResponse findByUuid(@PathVariable String uuid) {
-        return guideService.findByUuid(uuid);
+    @GetMapping("/{id}")
+    public GuideResponse findById(@PathVariable Long id) {
+        return guideService.findById(id);
     }
 
-    @PatchMapping("/{uuid}")
-    public GuideResponse updateByUuid(@PathVariable String uuid,
+    @PatchMapping("/{id}")
+    public GuideResponse updateById(@PathVariable Long id,
                                       @Valid @RequestBody UpdateGuideRequest request) {
-        return guideService.updateByUuid(uuid, request);
+        return guideService.updateById(id, request);
     }
 
-    @PatchMapping("/{uuid}/status")
-    public GuideResponse changeStatus(@PathVariable String uuid,
+    @PatchMapping("/{id}/status")
+    public GuideResponse changeStatus(@PathVariable Long id,
                                       @Valid @RequestBody UpdateGuideStatusRequest request) {
-        return guideService.changeStatus(uuid, request);
+        return guideService.changeStatus(id, request);
     }
 
-    @DeleteMapping("/{uuid}")
+    @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteByUuid(@PathVariable String uuid) {
-        guideService.deleteByUuid(uuid);
+    public void deleteById(@PathVariable Long id) {
+        guideService.deleteById(id);
     }
 }

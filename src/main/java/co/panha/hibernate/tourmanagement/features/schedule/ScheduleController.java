@@ -37,26 +37,26 @@ public class ScheduleController {
         return scheduleService.createNew(request);
     }
 
-    @GetMapping("/{uuid}")
-    public ScheduleResponse findByUuid(@PathVariable String uuid) {
-        return scheduleService.findByUuid(uuid);
+    @GetMapping("/{id}")
+    public ScheduleResponse findById(@PathVariable Long id) {
+        return scheduleService.findById(id);
     }
 
-    @PatchMapping("/{uuid}")
-    public ScheduleResponse updateByUuid(@PathVariable String uuid,
+    @PatchMapping("/{id}")
+    public ScheduleResponse updateById(@PathVariable Long id,
                                          @Valid @RequestBody UpdateScheduleRequest request) {
-        return scheduleService.updateByUuid(uuid, request);
+        return scheduleService.updateById(id, request);
     }
 
-    @PatchMapping("/{uuid}/guide")
-    public ScheduleResponse assignGuide(@PathVariable String uuid,
+    @PatchMapping("/{id}/guide")
+    public ScheduleResponse assignGuide(@PathVariable Long id,
                                         @Valid @RequestBody AssignGuideRequest request) {
-        return scheduleService.assignGuide(uuid, request);
+        return scheduleService.assignGuide(id, request);
     }
 
-    @PatchMapping("/{uuid}/cancel")
-    public ScheduleResponse cancel(@PathVariable String uuid,
+    @PatchMapping("/{id}/cancel")
+    public ScheduleResponse cancel(@PathVariable Long id,
                                    @Valid @RequestBody CancelScheduleRequest request) {
-        return scheduleService.cancel(uuid, request);
+        return scheduleService.cancel(id, request);
     }
 }

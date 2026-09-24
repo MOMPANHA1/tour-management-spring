@@ -56,12 +56,11 @@ public class TourServiceImpl implements TourService {
         requireGroupSizeOrder(request.minGroupSize(), request.maxGroupSize());
 
         // ២. Load ធនធានពាក់ព័ន្ធ
-        Category category = loadCategory(request.categoryUuid());
-        Set<Destination> destinations = loadDestinations(request.destinationUuids());
+        Category category = loadCategory(request.categoryId());
+        Set<Destination> destinations = loadDestinations(request.destinationIds());
 
         // ５. Build
         Tour tour = tourMapper.toEntity(request);
-        tour.setUuid(GenerateUtils.randomUUID());
         tour.setCode(nextTourCode());
         tour.setSlug(GenerateUtils.generateUniqueSlug(request.title(), tourRepository::existsBySlug));
         tour.setCategory(category);
@@ -91,11 +90,11 @@ public class TourServiceImpl implements TourService {
         if (filter.keyword() != null && !filter.keyword().isBlank()) {
             specs.add(TourSpecs.titleOrDescLike(filter.keyword().trim()));
         }
-        if (filter.categoryUuid() != null && !filter.categoryUuid().isBlank()) {
-            specs.add(TourSpecs.hasCategory(filter.categoryUuid()));
+        if (filter.categoryId() != null) {
+            specs.add(TourSpecs.hasCategory(filter.categoryId()));
         }
-        if (filter.destinationUuid() != null && !filter.destinationUuid().isBlank()) {
-            specs.add(TourSpecs.hasDestination(filter.destinationUuid()));
+        if (filter.destinationId() != null) {
+            specs.add(TourSpecs.hasDestination(filter.destinationId()));
         }
         if (filter.minPrice() != null || filter.maxPrice() != null) {
             requirePriceOrder(filter.minPrice(), filter.maxPrice());
@@ -121,15 +120,15 @@ public class TourServiceImpl implements TourService {
     }
 
     @Override
-    public TourDetailResponse findByUuid(String uuid) {
-        return toDetailResponse(loadByUuid(uuid));
+    public TourDetailResponse findById(Long id) {
+        return toDetailResponse(loadById(id));
     }
 
     @Override
     @Transactional
-    public TourDetailResponse updateByUuid(String uuid, UpdateTourRequest request) {
+    public TourDetailResponse updateById(Long id, UpdateTourRequest request) {
 
-        Tour tour = loadByUuid(uuid);
+        Tour tour = loadById(id);
 
         // ពិនិត្យវិន័យឆ្លង field លើ*លទ្ធផលចុងក្រោយ* មិនមែនលើ request ទេ — ព្រោះ PATCH អាចផ្ញើមក
         // តែ durationNights ហើយបន្សល់ Tour ដែលមានយប់ច្រើនជាងថ្ងៃ។
@@ -145,15 +144,15 @@ public class TourServiceImpl implements TourService {
             tour.setSlug(GenerateUtils.generateUniqueSlug(request.title(), tourRepository::existsBySlug));
         }
 
-        if (request.categoryUuid() != null) {
-            tour.setCategory(loadCategory(request.categoryUuid()));
+        if (request.categoryId() != null) {
+            tour.setCategory(loadCategory(request.categoryId()));
         }
 
-        if (request.destinationUuids() != null) {
-            if (request.destinationUuids().isEmpty()) {
+        if (request.destinationIds() != null) {
+            if (request.destinationIds().isEmpty()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "ត្រូវមានទីតាំងយ៉ាងតិច ១");
             }
-            tour.setDestinations(loadDestinations(request.destinationUuids()));
+            tour.setDestinations(loadDestinations(request.destinationIds()));
         }
 
         tourMapper.updateEntity(request, tour);
@@ -168,9 +167,9 @@ public class TourServiceImpl implements TourService {
 
     @Override
     @Transactional
-    public TourDetailResponse publish(String uuid, boolean shouldPublish) {
+    public TourDetailResponse publish(Long id, boolean shouldPublish) {
 
-        Tour tour = loadByUuid(uuid);
+        Tour tour = loadById(id);
 
         if (shouldPublish) {
             requireReadyToPublish(tour);
@@ -183,9 +182,9 @@ public class TourServiceImpl implements TourService {
 
     @Override
     @Transactional
-    public void deleteByUuid(String uuid) {
+    public void deleteById(Long id) {
 
-        Tour tour = loadByUuid(uuid);
+        Tour tour = loadById(id);
 
         // TODO ដំណាក់កាល ４ (F7 Booking)៖ លុបមិនបានបើនៅមានការកក់សកម្ម
         //   long activeBookings = bookingRepository.countActiveBookingsByTour(tour.getId());
@@ -232,29 +231,29 @@ public class TourServiceImpl implements TourService {
         return scheduleRepository.findNextDepartureDate(tour.getId(), LocalDate.now());
     }
 
-    private Tour loadByUuid(String uuid) {
-        return tourRepository.findByUuidAndIsDeletedFalse(uuid)
+    private Tour loadById(Long id) {
+        return tourRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "រកមិនឃើញ Tour uuid = " + uuid));
+                        "រកមិនឃើញ Tour id = " + id));
     }
 
-    private Category loadCategory(String categoryUuid) {
-        return categoryRepository.findByUuidAndIsDeletedFalse(categoryUuid)
+    private Category loadCategory(Long categoryId) {
+        return categoryRepository.findByIdAndIsDeletedFalse(categoryId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "រកមិនឃើញប្រភេទ uuid = " + categoryUuid));
+                        "រកមិនឃើញប្រភេទ slug = " + categoryId));
     }
 
     /**
-     * ទាញទីតាំងតាម uuid — បោះ 404 ដោយរាយ uuid ណាដែលរកមិនឃើញ។
+     * ទាញទីតាំងតាម id — បោះ 404 ដោយរាយ id ណាដែលរកមិនឃើញ។
      *
-     * <p>ការប្រាប់ត្រឹម "រកមិនឃើញទីតាំង" មិនគ្រប់គ្រាន់ទេ ពេល client ផ្ញើ uuid ១០ មក។
+     * <p>ការប្រាប់ត្រឹម "រកមិនឃើញទីតាំង" មិនគ្រប់គ្រាន់ទេ ពេល client ផ្ញើ id ១០ មក។
      */
-    private Set<Destination> loadDestinations(Set<String> uuids) {
-        List<Destination> found = destinationRepository.findAllByUuidInAndIsDeletedFalse(List.copyOf(uuids));
+    private Set<Destination> loadDestinations(Set<Long> ids) {
+        List<Destination> found = destinationRepository.findAllByIdInAndIsDeletedFalse(List.copyOf(ids));
 
-        if (found.size() != uuids.size()) {
-            Set<String> missing = new LinkedHashSet<>(uuids);
-            found.forEach(destination -> missing.remove(destination.getUuid()));
+        if (found.size() != ids.size()) {
+            Set<Long> missing = new LinkedHashSet<>(ids);
+            found.forEach(destination -> missing.remove(destination.getId()));
 
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញទីតាំង៖ " + missing);
         }

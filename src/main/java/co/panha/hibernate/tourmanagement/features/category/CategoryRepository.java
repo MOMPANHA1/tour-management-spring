@@ -10,17 +10,20 @@ import java.util.Optional;
 @Repository
 public interface CategoryRepository extends JpaRepository<Category, Long> {
 
-    Optional<Category> findByUuidAndIsDeletedFalse(String uuid);
+    Optional<Category> findByIdAndIsDeletedFalse(Long id);
 
     boolean existsByNameIgnoreCaseAndIsDeletedFalse(String name);
 
     /**
-     * ពិនិត្យ slug <b>ដោយមិនច្រោះ {@code isDeleted}</b> ដោយចេតនា។
+     * ពិនិត្យ slug ក្នុងចំណោម<b>ជួរដែលនៅរស់</b>តែប៉ុណ្ណោះ។
      *
-     * <p>ជួរដែលលុប (soft) នៅតែកាន់កាប់ unique constraint ក្នុង database។ បើច្រោះវាចេញ
-     * ការបង្កើតថ្មីនឹងបរាជ័យដោយ {@code DataIntegrityViolationException} ជំនួសឲ្យទទួល slug ថ្មី។
+     * <p>ច្រោះ {@code isDeleted} បានព្រោះវិន័យ unique ក្នុង database ជា partial index
+     * {@code ux_categories_slug_active ... WHERE is_deleted = false} — ជួរដែលលុប (soft)
+     * លែងកាន់កាប់ slug ទេ។ បើថ្ងៃណាមួយ index នោះត្រូវប្តូរមកជា unique constraint ធម្មតាវិញ
+     * method នេះត្រូវដកការច្រោះចេញ បើមិនដូច្នេះការបង្កើតថ្មីនឹងបរាជ័យដោយ
+     * {@code DataIntegrityViolationException} ជំនួសឲ្យទទួល slug ថ្មី។
      */
-    boolean existsBySlug(String slug);
+    boolean existsBySlugAndIsDeletedFalse(String slug);
 
     Page<Category> findAllByIsDeletedFalse(Pageable pageable);
 }

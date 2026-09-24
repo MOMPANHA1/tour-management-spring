@@ -13,10 +13,10 @@ import java.time.LocalTime;
 /**
  * ទិន្នន័យកែកាលវិភាគ — UC5.6 (PATCH)។ គ្រប់ field អាច {@code null}។
  *
- * <p>{@code tourUuid} មិនកែបានទេ — កាលវិភាគជារបស់ Tour តែមួយជានិច្ច។ ការប្តូរ Tour
+ * <p>{@code tourId} មិនកែបានទេ — កាលវិភាគជារបស់ Tour តែមួយជានិច្ច។ ការប្តូរ Tour
  * នឹងធ្វើឲ្យការកក់ដែលមានស្រាប់សំដៅលើដំណើរខុស។ បើត្រូវការ សូមបោះបង់ហើយបង្កើតថ្មី។
  *
- * <p>{@code guideUuid} ក៏មិនកែទីនេះដែរ — ប្រើ {@code PATCH /{uuid}/guide} ដែលមាន
+ * <p>{@code guideId} ក៏មិនកែទីនេះដែរ — ប្រើ {@code PATCH /{id}/guide} ដែលមាន
  * ការពិនិត្យការជាន់គ្នា។
  */
 public record UpdateScheduleRequest(
