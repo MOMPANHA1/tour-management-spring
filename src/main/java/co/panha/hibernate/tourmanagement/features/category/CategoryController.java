@@ -4,7 +4,6 @@ import co.panha.hibernate.tourmanagement.base.PageResponse;
 import co.panha.hibernate.tourmanagement.features.category.dto.CategoryResponse;
 import co.panha.hibernate.tourmanagement.features.category.dto.CreateCategoryRequest;
 import co.panha.hibernate.tourmanagement.features.category.dto.UpdateCategoryRequest;
-import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>សិទ្ធិ (ADMIN សម្រាប់ POST/PATCH/DELETE) នឹងអនុវត្តនៅដំណាក់កាល ៥ ពេលដាក់ Spring Security។
  */
-@Tag(name = "Category", description = "ប្រភេទ Tour")
+@Tag(name = "Category")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/categories")

@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>សិទ្ធិ (ADMIN លើកលែង {@code GET}) នឹងអនុវត្តនៅដំណាក់កាល ៥ ពេលដាក់ Spring Security។
  */
-@Tag(name = "Schedule", description = "កាលវិភាគចេញដំណើរ")
+@Tag(name = "Schedule")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/schedules")

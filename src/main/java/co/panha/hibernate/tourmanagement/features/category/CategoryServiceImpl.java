@@ -32,7 +32,7 @@ public class CategoryServiceImpl implements CategoryService {
         // ៣. Check Rules
         if (categoryRepository.existsByNameIgnoreCaseAndIsDeletedFalse(request.name())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "ប្រភេទឈ្មោះ '" + request.name() + "' មានរួចហើយ");
+                    "Category name '" + request.name() + "' already exists");
         }
 
         // ៥. Build
@@ -68,7 +68,7 @@ public class CategoryServiceImpl implements CategoryService {
         if (request.name() != null && !request.name().equalsIgnoreCase(category.getName())) {
 
             if (categoryRepository.existsByNameIgnoreCaseAndIsDeletedFalse(request.name())) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "ប្រភេទឈ្មោះនេះមានរួចហើយ");
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Category name '" + request.name() + "' already exists");
             }
             category.setSlug(GenerateUtils.generateUniqueSlug(
                     request.name(), categoryRepository::existsBySlugAndIsDeletedFalse));
@@ -89,20 +89,18 @@ public class CategoryServiceImpl implements CategoryService {
         long activeTours = tourRepository.countActiveByCategory(category.getId());
         if (activeTours > 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "មិនអាចលុបបានទេ ព្រោះនៅមាន " + activeTours + " Tour ក្នុងប្រភេទនេះ");
+                    "Cannot delete category with active tours (" + activeTours + ")");
         }
 
         category.setIsDeleted(true);
         categoryRepository.save(category);
     }
 
-    // ---------- ជំនួយខាងក្នុង ----------
-
     /** ទាញប្រភេទតាម id ឬបោះ 404 — ប្រើរួមគ្នាដោយ ៣ method។ */
     private Category loadById(Long id) {
         return categoryRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "រកមិនឃើញប្រភេទ id = " + id));
+                        "Category not found with id = " + id));
     }
 
     /**

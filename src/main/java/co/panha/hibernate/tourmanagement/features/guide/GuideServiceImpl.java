@@ -37,11 +37,11 @@ public class GuideServiceImpl implements GuideService {
     public GuideResponse createNew(CreateGuideRequest request) {
 
         if (guideRepository.existsByPhoneNumber(request.phoneNumber())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "លេខទូរស័ព្ទនេះមានក្នុងប្រព័ន្ធរួចហើយ");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Phone number already exists");
         }
 
         if (request.email() != null && guideRepository.existsByEmail(request.email())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "អ៊ីមែលនេះមានក្នុងប្រព័ន្ធរួចហើយ");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
         }
 
         Guide guide = guideMapper.toEntity(request);
@@ -68,11 +68,11 @@ public class GuideServiceImpl implements GuideService {
     public List<GuideResponse> findAvailable(LocalDate startDate, LocalDate endDate) {
 
         if (startDate == null || endDate == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "ត្រូវបញ្ជាក់ startDate និង endDate");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "startDate and endDate are required");
         }
 
         if (endDate.isBefore(startDate)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "endDate ត្រូវក្រោយ startDate");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "endDate must be on or after startDate");
         }
 
         // ទាញបញ្ជីអ្នករវល់ជាមុន ជំនួសឲ្យ subquery NOT IN — អានងាយជាង ហើយបញ្ជីមគ្គុទ្ទេសក៍តូច
@@ -99,13 +99,13 @@ public class GuideServiceImpl implements GuideService {
         if (request.phoneNumber() != null
                 && !request.phoneNumber().equals(guide.getPhoneNumber())
                 && guideRepository.existsByPhoneNumber(request.phoneNumber())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "លេខទូរស័ព្ទនេះមានក្នុងប្រព័ន្ធរួចហើយ");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Phone number already exists");
         }
 
         if (request.email() != null
                 && !request.email().equalsIgnoreCase(guide.getEmail())
                 && guideRepository.existsByEmail(request.email())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "អ៊ីមែលនេះមានក្នុងប្រព័ន្ធរួចហើយ");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already exists");
         }
 
         guideMapper.updateEntity(request, guide);
@@ -121,7 +121,7 @@ public class GuideServiceImpl implements GuideService {
 
         if (guide.getStatus() == request.status()) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "មគ្គុទ្ទេសក៍នេះស្ថិតក្នុងស្ថានភាព " + request.status() + " រួចហើយ");
+                    "Guide is already in status " + request.status());
         }
 
         // វិន័យ៖ ដាក់ INACTIVE មិនបានបើនៅមានកាលវិភាគអនាគត — ភ្ញៀវនឹងគ្មានមគ្គុទ្ទេសក៍
@@ -130,7 +130,7 @@ public class GuideServiceImpl implements GuideService {
 
             if (upcoming > 0) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT,
-                        "នៅមានកាលវិភាគអនាគត " + upcoming + " ត្រូវប្តូរមគ្គុទ្ទេសក៍សិន");
+                        "Guide still has " + upcoming + " upcoming schedule(s) — reassign them first");
             }
         }
 
@@ -152,7 +152,7 @@ public class GuideServiceImpl implements GuideService {
     private Guide loadById(Long id) {
         return guideRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "រកមិនឃើញមគ្គុទ្ទេសក៍ id = " + id));
+                        "Guide not found with id = " + id));
     }
 
     /**

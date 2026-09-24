@@ -29,7 +29,7 @@ import java.util.List;
  *
  * <p>សិទ្ធិ (ADMIN សម្រាប់ភាគច្រើន) នឹងអនុវត្តនៅដំណាក់កាល ៥ ពេលដាក់ Spring Security។
  */
-@Tag(name = "Guide", description = "មគ្គុទ្ទេសក៍")
+@Tag(name = "Guide")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/guides")

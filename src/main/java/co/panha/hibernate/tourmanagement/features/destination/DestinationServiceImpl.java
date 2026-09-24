@@ -35,7 +35,7 @@ public class DestinationServiceImpl implements DestinationService {
 
         if (destinationRepository.existsByNameIgnoreCaseAndProvinceIgnoreCase(request.name(), request.province())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "ទីតាំង '" + request.name() + "' នៅខេត្ត " + request.province() + " មានរួចហើយ");
+                    "Destination '" + request.name() + "' in province " + request.province() + " already exists");
         }
 
         requireCoordinatePair(request.latitude(), request.longitude());
@@ -81,7 +81,7 @@ public class DestinationServiceImpl implements DestinationService {
         if (identityChanged
                 && destinationRepository.existsByNameIgnoreCaseAndProvinceIgnoreCase(newName, newProvince)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "ទីតាំង '" + newName + "' នៅខេត្ត " + newProvince + " មានរួចហើយ");
+                    "Destination '" + newName + "' in province " + newProvince + " already exists");
         }
 
         destinationMapper.updateEntity(request, destination);
@@ -103,7 +103,7 @@ public class DestinationServiceImpl implements DestinationService {
         long activeTours = tourRepository.countActiveByDestination(destination.getId());
         if (activeTours > 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "មិនអាចលុបបានទេ ព្រោះនៅមាន " + activeTours + " Tour ភ្ជាប់នឹងទីតាំងនេះ");
+                    "Cannot delete destination with linked tours (" + activeTours + ")");
         }
 
         destination.setIsDeleted(true);
@@ -115,14 +115,14 @@ public class DestinationServiceImpl implements DestinationService {
     private Destination loadById(Long id) {
         return destinationRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "រកមិនឃើញទីតាំង id = " + id));
+                        "Destination not found with id = " + id));
     }
 
     /** កូអរដោនេត្រូវមានទាំងគូ ឬទទេទាំងគូ — ចំណុចតែមួយគ្មានន័យលើផែនទី។ */
     private void requireCoordinatePair(BigDecimal latitude, BigDecimal longitude) {
         if ((latitude == null) != (longitude == null)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "ត្រូវបំពេញ latitude និង longitude ទាំងពីរ ឬទុកទទេទាំងពីរ");
+                    "latitude and longitude must both be provided or both be empty");
         }
     }
 

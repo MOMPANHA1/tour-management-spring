@@ -32,7 +32,7 @@ import java.util.List;
  *
  * <p>សិទ្ធិ (ADMIN សម្រាប់ POST/PATCH/DELETE) នឹងអនុវត្តនៅដំណាក់កាល ៥ ពេលដាក់ Spring Security។
  */
-@Tag(name = "Tour", description = "កញ្ចប់ដំណើរកម្សាន្ត")
+@Tag(name = "Tour")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/tours")

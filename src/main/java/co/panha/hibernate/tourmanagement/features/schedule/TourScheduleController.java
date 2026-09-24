@@ -18,7 +18,7 @@ import java.util.List;
  *
  * <p>ដាក់ដាច់ពី {@code ScheduleController} ព្រោះ base path ខុសគ្នា — វាជាធនធានរងរបស់ Tour។
  */
-@Tag(name = "Schedule", description = "កាលវិភាគចេញដំណើរ")
+@Tag(name = "Schedule")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/tours/{tourId}/schedules")

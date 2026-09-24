@@ -24,7 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>សិទ្ធិ (ADMIN សម្រាប់ POST/PATCH/DELETE) នឹងអនុវត្តនៅដំណាក់កាល ៥ ពេលដាក់ Spring Security។
  */
-@Tag(name = "Destination", description = "ទីតាំងគោលដៅ")
+@Tag(name = "Destination")
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/v1/destinations")

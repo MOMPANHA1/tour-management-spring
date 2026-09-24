@@ -52,7 +52,7 @@ public class ScheduleServiceImpl implements ScheduleService {
         // ２. Load
         Tour tour = tourRepository.findByIdAndIsDeletedFalse(request.tourId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "រកមិនឃើញ Tour id = " + request.tourId()));
+                        "Tour not found with id = " + request.tourId()));
 
         // ៣. Check Rules
         requireDurationMatchesTour(request.departureDate(), request.returnDate(), tour);
@@ -86,7 +86,7 @@ public class ScheduleServiceImpl implements ScheduleService {
 
         Tour tour = tourRepository.findByIdAndIsDeletedFalse(tourId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "រកមិនឃើញ Tour id = " + tourId));
+                        "Tour not found with id = " + tourId));
 
         LocalDate from = (fromDate != null) ? fromDate : LocalDate.now();
 
@@ -134,7 +134,7 @@ public class ScheduleServiceImpl implements ScheduleService {
             //   int booked = bookingRepository.countOccupiedSeats(schedule.getId());
             //   if (request.capacity() < booked) {
             //       throw new ResponseStatusException(HttpStatus.CONFLICT,
-            //               "capacity មិនអាចតិចជាងកៅអីដែលកក់រួច (" + booked + ")");
+            //               "capacity cannot be less than the seats already booked (" + booked + ")");
             //   }
             schedule.setCapacity(request.capacity());
         }
@@ -160,7 +160,7 @@ public class ScheduleServiceImpl implements ScheduleService {
 
         if (LOCKED_STATUSES.contains(schedule.getStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "មិនអាចប្តូរមគ្គុទ្ទេសក៍លើកាលវិភាគស្ថានភាព " + schedule.getStatus());
+                    "Cannot reassign guide on a schedule in status " + schedule.getStatus());
         }
 
         Guide guide = loadActiveGuide(request.guideId());
@@ -178,11 +178,11 @@ public class ScheduleServiceImpl implements ScheduleService {
         TourSchedule schedule = loadById(id);
 
         if (schedule.getStatus() == ScheduleStatus.CANCELLED) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "កាលវិភាគនេះត្រូវបានបោះបង់រួចហើយ");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Schedule is already cancelled");
         }
 
         if (schedule.getStatus() == ScheduleStatus.DEPARTED || schedule.getStatus() == ScheduleStatus.COMPLETED) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "ដំណើរបានចេញ/បញ្ចប់ហើយ មិនអាចបោះបង់បានទេ");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Cannot cancel a schedule that has already departed or completed");
         }
 
         schedule.setStatus(ScheduleStatus.CANCELLED);
@@ -193,9 +193,9 @@ public class ScheduleServiceImpl implements ScheduleService {
         //   for (Booking booking : bookingRepository.findActiveBySchedule(schedule.getId())) {
         //       booking.setStatus(BookingStatus.CANCELLED);
         //       booking.setCancelledAt(LocalDateTime.now());
-        //       booking.setCancelReason("កាលវិភាគត្រូវបានបោះបង់៖ " + request.reason());
+        //       booking.setCancelReason("Schedule cancelled: " + request.reason());
         //       bookingRepository.save(booking);
-        //       paymentService.refundFull(booking, "កាលវិភាគត្រូវបានបោះបង់");
+        //       paymentService.refundFull(booking, "Schedule cancelled");
         //       notificationService.notifyScheduleCancelled(booking);
         //   }
 
@@ -240,7 +240,7 @@ public class ScheduleServiceImpl implements ScheduleService {
         //       }
         //   }
 
-        log.info("refreshScheduleStatuses៖ DEPARTED {} · COMPLETED {}", departing.size(), completing.size());
+        log.info("refreshScheduleStatuses: DEPARTED {} · COMPLETED {}", departing.size(), completing.size());
     }
 
     // ---------- ជំនួយខាងក្នុង ----------
@@ -248,17 +248,17 @@ public class ScheduleServiceImpl implements ScheduleService {
     private TourSchedule loadById(Long id) {
         return scheduleRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "រកមិនឃើញកាលវិភាគ id = " + id));
+                        "Schedule not found with id = " + id));
     }
 
     private Guide loadActiveGuide(Long guideId) {
         Guide guide = guideRepository.findByIdAndIsDeletedFalse(guideId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "រកមិនឃើញមគ្គុទ្ទេសក៍ id = " + guideId));
+                        "Guide not found with id = " + guideId));
 
         if (guide.getStatus() != GuideStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "មគ្គុទ្ទេសក៍នេះមិនសកម្ម (" + guide.getStatus() + ")");
+                    "Guide is not active (" + guide.getStatus() + ")");
         }
         return guide;
     }
@@ -266,11 +266,11 @@ public class ScheduleServiceImpl implements ScheduleService {
     private void requireDateOrder(LocalDate departureDate, LocalDate returnDate) {
         if (returnDate.isBefore(departureDate)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "ថ្ងៃត្រឡប់ត្រូវក្រោយ ឬស្មើថ្ងៃចេញដំណើរ");
+                    "returnDate must be on or after departureDate");
         }
 
         if (DateUtils.isPast(departureDate)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "ថ្ងៃចេញដំណើរមិនអាចជាអតីតកាល");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "departureDate cannot be in the past");
         }
     }
 
@@ -280,34 +280,34 @@ public class ScheduleServiceImpl implements ScheduleService {
 
         if (actualDays != tour.getDurationDays()) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT,
-                    "រយៈពេលមិនត្រូវគ្នា — Tour នេះមាន " + tour.getDurationDays()
-                            + " ថ្ងៃ តែកាលវិភាគមាន " + actualDays);
+                    "Duration mismatch — tour lasts " + tour.getDurationDays()
+                            + " day(s) but the schedule spans " + actualDays);
         }
     }
 
     private void requireCapacityWithinTourLimits(Integer capacity, Tour tour) {
         if (capacity > tour.getMaxGroupSize()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "capacity មិនអាចលើស maxGroupSize របស់ Tour (" + tour.getMaxGroupSize() + ")");
+                    "capacity cannot exceed the tour maxGroupSize (" + tour.getMaxGroupSize() + ")");
         }
 
         if (tour.getMinGroupSize() != null && capacity < tour.getMinGroupSize()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "capacity មិនអាចតិចជាង minGroupSize របស់ Tour (" + tour.getMinGroupSize() + ")");
+                    "capacity cannot be less than the tour minGroupSize (" + tour.getMinGroupSize() + ")");
         }
     }
 
     private void requireGuideFree(Guide guide, LocalDate startDate, LocalDate endDate, Long excludeScheduleId) {
         if (scheduleRepository.hasGuideConflict(guide.getId(), startDate, endDate, excludeScheduleId)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "មគ្គុទ្ទេសក៍នេះមានកាលវិភាគជាន់គ្នាក្នុងចន្លោះថ្ងៃនេះ");
+                    "Guide already has an overlapping schedule in this date range");
         }
     }
 
     private void requireEditable(TourSchedule schedule) {
         if (LOCKED_STATUSES.contains(schedule.getStatus())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "មិនអាចកែកាលវិភាគស្ថានភាព " + schedule.getStatus());
+                    "Cannot edit a schedule in status " + schedule.getStatus());
         }
     }
 

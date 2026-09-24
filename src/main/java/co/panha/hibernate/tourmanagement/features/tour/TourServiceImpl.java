@@ -150,7 +150,7 @@ public class TourServiceImpl implements TourService {
 
         if (request.destinationIds() != null) {
             if (request.destinationIds().isEmpty()) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "ត្រូវមានទីតាំងយ៉ាងតិច ១");
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "At least one destination is required");
             }
             tour.setDestinations(loadDestinations(request.destinationIds()));
         }
@@ -190,7 +190,7 @@ public class TourServiceImpl implements TourService {
         //   long activeBookings = bookingRepository.countActiveBookingsByTour(tour.getId());
         //   if (activeBookings > 0) {
         //       throw new ResponseStatusException(HttpStatus.CONFLICT,
-        //               "មិនអាចលុបបានទេ ព្រោះនៅមានការកក់សកម្ម " + activeBookings);
+        //               "Cannot delete tour with active bookings (" + activeBookings + ")");
         //   }
 
         tour.setIsPublished(false);          // ដកចេញពីការលក់មុនលុប
@@ -234,13 +234,13 @@ public class TourServiceImpl implements TourService {
     private Tour loadById(Long id) {
         return tourRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "រកមិនឃើញ Tour id = " + id));
+                        "Tour not found with id = " + id));
     }
 
     private Category loadCategory(Long categoryId) {
         return categoryRepository.findByIdAndIsDeletedFalse(categoryId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
-                        "រកមិនឃើញប្រភេទ slug = " + categoryId));
+                        "Category not found with slug = " + categoryId));
     }
 
     /**
@@ -255,7 +255,7 @@ public class TourServiceImpl implements TourService {
             Set<Long> missing = new LinkedHashSet<>(ids);
             found.forEach(destination -> missing.remove(destination.getId()));
 
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញទីតាំង៖ " + missing);
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Destinations not found: " + missing);
         }
 
         return new LinkedHashSet<>(found);
@@ -276,19 +276,19 @@ public class TourServiceImpl implements TourService {
 
     private void requireNightsWithinDays(Integer nights, Integer days) {
         if (nights != null && days != null && nights > days) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "ចំនួនយប់មិនអាចលើសចំនួនថ្ងៃ");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "durationNights cannot exceed durationDays");
         }
     }
 
     private void requireGroupSizeOrder(Integer min, Integer max) {
         if (min != null && max != null && min > max) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "minGroupSize មិនអាចលើស maxGroupSize");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "minGroupSize cannot exceed maxGroupSize");
         }
     }
 
     private void requirePriceOrder(BigDecimal min, BigDecimal max) {
         if (min != null && max != null && min.compareTo(max) > 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "minPrice មិនអាចលើស maxPrice");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "minPrice cannot exceed maxPrice");
         }
     }
 
@@ -296,21 +296,21 @@ public class TourServiceImpl implements TourService {
     private void requireReadyToPublish(Tour tour) {
 
         if (tour.getDescription() == null || tour.getDescription().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT, "ត្រូវបំពេញការពិពណ៌នាមុនបើកលក់");
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT, "Description is required before publishing");
         }
 
         if (tour.getThumbnailUrl() == null || tour.getThumbnailUrl().isBlank()) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT, "ត្រូវដាក់រូបភាពគម្របមុនបើកលក់");
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT, "A cover image is required before publishing");
         }
 
         if (tour.getDestinations().isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT, "ត្រូវមានទីតាំងយ៉ាងតិច ១");
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT, "At least one destination is required");
         }
 
         long openSchedules = scheduleRepository.countOpenSchedules(tour.getId(), LocalDate.now());
         if (openSchedules == 0) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT,
-                    "ត្រូវមានកាលវិភាគចេញដំណើរយ៉ាងតិច ១ មុនបើកលក់");
+                    "At least one departure schedule is required before publishing");
         }
     }
 

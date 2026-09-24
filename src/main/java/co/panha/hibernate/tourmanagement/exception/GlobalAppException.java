@@ -27,7 +27,8 @@ import java.util.stream.Collectors;
 /**
  * ការគ្រប់គ្រងកំហុសសកល — បម្លែងរាល់ exception ទៅជា {@link ApiErrorResponse} ដែលមានរូបរាងតែមួយ។
  *
- * <p>គោលការណ៍៖ អ្នកប្រើមិនគួរឃើញ stack trace ឬសារភាសាអង់គ្លេសពី framework ទេ — គ្រប់សារត្រូវជាភាសាខ្មែរ។
+ * <p>គោលការណ៍៖ អ្នកប្រើមិនគួរឃើញ stack trace ឬសារឆៅពី framework ទេ — គ្រប់សារ API ត្រូវជាភាសាអង់គ្លេស
+ * (ឯ javadoc និងមតិយោបល់ក្នុងកូដនៅជាភាសាខ្មែរ)។
  */
 @Slf4j
 @RestControllerAdvice
@@ -47,7 +48,7 @@ public class GlobalAppException {
         }
 
         return build(HttpStatus.BAD_REQUEST, "Validation Failed",
-                "ទិន្នន័យបញ្ចូលមិនត្រឹមត្រូវ", request, fieldErrors);
+                "Invalid request payload", request, fieldErrors);
     }
 
     /**
@@ -68,14 +69,14 @@ public class GlobalAppException {
             Class<?> targetType = cause.getTargetType();
 
             String allowed = (targetType != null && targetType.isEnum())
-                    ? "តម្លៃដែលអនុញ្ញាត៖ " + Arrays.toString(targetType.getEnumConstants())
-                    : "ត្រូវការប្រភេទ " + (targetType != null ? targetType.getSimpleName() : "ផ្សេង");
+                    ? "allowed values: " + Arrays.toString(targetType.getEnumConstants())
+                    : "expected type " + (targetType != null ? targetType.getSimpleName() : "unknown");
 
-            fieldErrors = Map.of(field, "តម្លៃមិនត្រឹមត្រូវ — " + allowed);
+            fieldErrors = Map.of(field, "Invalid value — " + allowed);
         }
 
         return build(HttpStatus.BAD_REQUEST, "Bad Request",
-                "ទម្រង់ទិន្នន័យដែលផ្ញើមកមិនត្រឹមត្រូវ", request, fieldErrors);
+                "Malformed request body", request, fieldErrors);
     }
 
     /** Query param ឬ path variable ដែលបម្លែងមិនបាន — ឧ. {@code ?page=abc} ឬ {@code ?status=BOGUS}។ */
@@ -85,15 +86,15 @@ public class GlobalAppException {
         Class<?> requiredType = ex.getRequiredType();
 
         String allowed = (requiredType != null && requiredType.isEnum())
-                ? "តម្លៃដែលអនុញ្ញាត៖ " + Arrays.toString(requiredType.getEnumConstants())
-                : "ត្រូវការប្រភេទ " + (requiredType != null ? requiredType.getSimpleName() : "ផ្សេង");
+                ? "allowed values: " + Arrays.toString(requiredType.getEnumConstants())
+                : "expected type " + (requiredType != null ? requiredType.getSimpleName() : "unknown");
 
         return build(HttpStatus.BAD_REQUEST, "Bad Request",
-                "តម្លៃប៉ារ៉ាម៉ែត្រមិនត្រឹមត្រូវ", request,
-                Map.of(ex.getName(), "តម្លៃមិនត្រឹមត្រូវ — " + allowed));
+                "Invalid parameter value", request,
+                Map.of(ex.getName(), "Invalid value — " + allowed));
     }
 
-    /** កំហុសដែល Service បោះដោយចេតនា — ផ្ទុកលេខកូដ និងសារខ្មែររួចស្រេច។ */
+    /** កំហុសដែល Service បោះដោយចេតនា — ផ្ទុកលេខកូដ និងសារជាភាសាអង់គ្លេសរួចស្រេច។ */
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ApiErrorResponse> handleResponseStatus(ResponseStatusException ex,
                                                                  HttpServletRequest request) {
@@ -110,20 +111,20 @@ public class GlobalAppException {
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiErrorResponse> handleDataIntegrity(DataIntegrityViolationException ex,
                                                                 HttpServletRequest request) {
-        log.warn("DataIntegrityViolation នៅ {} — {}", request.getRequestURI(), ex.getMostSpecificCause().getMessage());
+        log.warn("DataIntegrityViolation at {} — {}", request.getRequestURI(), ex.getMostSpecificCause().getMessage());
 
         return build(HttpStatus.CONFLICT, "Conflict",
-                "ទិន្នន័យប៉ះទង្គិចនឹងទិន្នន័យដែលមានស្រាប់", request, null);
+                "Request conflicts with existing data", request, null);
     }
 
     /** មនុស្ស ២ នាក់កែទិន្នន័យដដែលព្រមគ្នា — កើតលើ {@code Booking} ដែលមាន {@code @Version}។ */
     @ExceptionHandler(OptimisticLockingFailureException.class)
     public ResponseEntity<ApiErrorResponse> handleOptimisticLock(OptimisticLockingFailureException ex,
                                                                  HttpServletRequest request) {
-        log.warn("OptimisticLockingFailure នៅ {}", request.getRequestURI());
+        log.warn("OptimisticLockingFailure at {}", request.getRequestURI());
 
         return build(HttpStatus.CONFLICT, "Conflict",
-                "ទិន្នន័យត្រូវបានកែដោយអ្នកផ្សេង សូមព្យាយាមម្តងទៀត", request, null);
+                "The record was modified by someone else — please retry", request, null);
     }
 
     // TODO ដំណាក់កាល ៥៖ បន្ថែម handler សម្រាប់ AccessDeniedException -> 403
@@ -144,10 +145,10 @@ public class GlobalAppException {
             return build(status, reasonPhrase(status), ex.getMessage(), request, null);
         }
 
-        log.error("កំហុសមិនរំពឹងទុកនៅ {} {}", request.getMethod(), request.getRequestURI(), ex);
+        log.error("Unexpected error at {} {}", request.getMethod(), request.getRequestURI(), ex);
 
         return build(HttpStatus.INTERNAL_SERVER_ERROR, "Internal Server Error",
-                "មានបញ្ហាបច្ចេកទេស សូមទាក់ទងអ្នកគ្រប់គ្រង", request, null);
+                "An internal error occurred — please contact the administrator", request, null);
     }
 
     // ---------- ជំនួយខាងក្នុង ----------
@@ -157,7 +158,7 @@ public class GlobalAppException {
         ApiErrorResponse body = ApiErrorResponse.of(
                 status.value(),
                 error,
-                (message == null || message.isBlank()) ? "មានបញ្ហាកើតឡើង" : message,
+                (message == null || message.isBlank()) ? "An error occurred" : message,
                 request.getRequestURI(),
                 fieldErrors
         );
