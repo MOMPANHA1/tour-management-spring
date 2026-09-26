@@ -65,8 +65,21 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/guides/available").hasAuthority("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/v1/guides/*").permitAll()
 
+                // ---------- Booking / Payment៖ ADMIN មុន ព្រោះជាករណីលើកលែងក្នុងផ្លូវរបស់ CUSTOMER ----------
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/bookings/*/confirm").hasAuthority("ADMIN")
+                .requestMatchers(HttpMethod.GET, "/api/v1/bookings").hasAuthority("ADMIN")
+                .requestMatchers(HttpMethod.POST, "/api/v1/bookings/*/refunds").hasAuthority("ADMIN")
+                .requestMatchers("/api/v1/payments/**").hasAuthority("ADMIN")
+
+                // សង្ខេបទូទាត់ — ម្ចាស់ ឬ ADMIN (Service ពិនិត្យម្ចាស់ខ្លួនឯង)
+                .requestMatchers(HttpMethod.GET, "/api/v1/bookings/*/payments")
+                        .hasAnyAuthority("CUSTOMER", "ADMIN")
+
                 // ---------- CUSTOMER ----------
                 .requestMatchers("/api/v1/customers/me/**").hasAuthority("CUSTOMER")
+
+                // GET /bookings/{code} បើកឲ្យទាំង CUSTOMER និង ADMIN — Service ពិនិត្យម្ចាស់ខ្លួនឯង
+                .requestMatchers(HttpMethod.GET, "/api/v1/bookings/*").hasAnyAuthority("CUSTOMER", "ADMIN")
                 .requestMatchers("/api/v1/bookings/**").hasAuthority("CUSTOMER")
                 .requestMatchers("/api/v1/reviews/**").hasAuthority("CUSTOMER")
 

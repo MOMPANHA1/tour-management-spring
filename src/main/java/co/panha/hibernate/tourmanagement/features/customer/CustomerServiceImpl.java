@@ -1,6 +1,8 @@
 package co.panha.hibernate.tourmanagement.features.customer;
 
 import co.panha.hibernate.tourmanagement.base.PageMapper;
+import co.panha.hibernate.tourmanagement.features.booking.BookingRepository;
+import co.panha.hibernate.tourmanagement.features.booking.BookingStatus;
 import co.panha.hibernate.tourmanagement.base.PageResponse;
 import co.panha.hibernate.tourmanagement.features.customer.dto.CustomerResponse;
 import co.panha.hibernate.tourmanagement.features.customer.dto.PatchCustomerRequest;
@@ -37,6 +39,7 @@ public class CustomerServiceImpl implements CustomerService {
 
     private final CustomerRepository customerRepository;
     private final CustomerMapper customerMapper;
+    private final BookingRepository bookingRepository;
     private final KeycloakUserService keycloakUserService;
 
     /**
@@ -215,22 +218,21 @@ public class CustomerServiceImpl implements CustomerService {
      * ច្បាប់នេះនៅមិនទាន់មានប្រសិទ្ធភាព។
      */
     private void requireReasonWhenCustomerHasActiveBookings(Customer customer, String reason) {
-        // TODO ដំណាក់កាល ៤ (F7 Booking)៖
-        //   long active = bookingRepository.countActiveByCustomer(customer.getId());
-        //   if (active > 0 && (reason == null || reason.isBlank())) {
-        //       throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-        //               "A reason is required — this customer has " + active + " active booking(s)");
-        //   }
+
+        long active = bookingRepository.countActiveByCustomer(customer.getId());
+
+        if (active > 0 && (reason == null || reason.isBlank())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "A reason is required — this customer has " + active + " active booking(s)");
+        }
     }
 
     /** បំពេញស្ថិតិដែលមាននៅ database មិនមែនក្នុង entity — ដូចលំនាំ {@code GuideServiceImpl}។ */
     private CustomerResponse toResponseWithStats(Customer customer) {
 
-        // TODO ដំណាក់កាល ៤ (F7 Booking)៖ បូកការកក់ពិត
-        //   long totalBookings  = bookingRepository.countByCustomerId(customer.getId());
-        //   long completedTours = bookingRepository.countByCustomerIdAndStatus(customer.getId(), COMPLETED);
-        long totalBookings = 0;
-        long completedTours = 0;
+        long totalBookings = bookingRepository.countByCustomerIdAndIsDeletedFalse(customer.getId());
+        long completedTours = bookingRepository.countByCustomerIdAndStatusAndIsDeletedFalse(
+                customer.getId(), BookingStatus.COMPLETED);
 
         return customerMapper.toResponse(customer, totalBookings, completedTours);
     }

@@ -1,4 +1,4 @@
 /**
- * DTO (Request / Response) សម្រាប់ feature payment។
+ * DTO សម្រាប់ F8 — ការទូទាត់ (Payment)។
  */
 package co.panha.hibernate.tourmanagement.features.payment.dto;

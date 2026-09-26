@@ -2,6 +2,7 @@ package co.panha.hibernate.tourmanagement.features.tour;
 
 import co.panha.hibernate.tourmanagement.base.PageMapper;
 import co.panha.hibernate.tourmanagement.base.PageResponse;
+import co.panha.hibernate.tourmanagement.features.booking.BookingRepository;
 import co.panha.hibernate.tourmanagement.features.category.Category;
 import co.panha.hibernate.tourmanagement.features.category.CategoryRepository;
 import co.panha.hibernate.tourmanagement.features.destination.Destination;
@@ -45,6 +46,7 @@ public class TourServiceImpl implements TourService {
     private final CategoryRepository categoryRepository;
     private final DestinationRepository destinationRepository;
     private final ScheduleRepository scheduleRepository;
+    private final BookingRepository bookingRepository;
     private final TourMapper tourMapper;
 
     @Override
@@ -186,12 +188,12 @@ public class TourServiceImpl implements TourService {
 
         Tour tour = loadById(id);
 
-        // TODO ដំណាក់កាល ４ (F7 Booking)៖ លុបមិនបានបើនៅមានការកក់សកម្ម
-        //   long activeBookings = bookingRepository.countActiveBookingsByTour(tour.getId());
-        //   if (activeBookings > 0) {
-        //       throw new ResponseStatusException(HttpStatus.CONFLICT,
-        //               "Cannot delete tour with active bookings (" + activeBookings + ")");
-        //   }
+        // លុបមិនបានបើនៅមានការកក់សកម្ម — ភ្ញៀវបានបង់ប្រាក់ទុករួចហើយ
+        long activeBookings = bookingRepository.countActiveBookingsByTour(tour.getId());
+        if (activeBookings > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Cannot delete tour with active bookings (" + activeBookings + ")");
+        }
 
         tour.setIsPublished(false);          // ដកចេញពីការលក់មុនលុប
         tour.setIsDeleted(true);

@@ -1,6 +1,10 @@
 package co.panha.hibernate.tourmanagement.features.schedule;
 
+import co.panha.hibernate.tourmanagement.features.booking.Booking;
+import co.panha.hibernate.tourmanagement.features.booking.BookingRepository;
+import co.panha.hibernate.tourmanagement.features.booking.BookingStatus;
 import co.panha.hibernate.tourmanagement.features.guide.Guide;
+import co.panha.hibernate.tourmanagement.features.payment.PaymentService;
 import co.panha.hibernate.tourmanagement.features.guide.GuideRepository;
 import co.panha.hibernate.tourmanagement.features.guide.GuideStatus;
 import co.panha.hibernate.tourmanagement.features.schedule.dto.AssignGuideRequest;
@@ -21,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
@@ -40,7 +45,9 @@ public class ScheduleServiceImpl implements ScheduleService {
     private final ScheduleRepository scheduleRepository;
     private final TourRepository tourRepository;
     private final GuideRepository guideRepository;
+    private final BookingRepository bookingRepository;
     private final ScheduleMapper scheduleMapper;
+    private final PaymentService paymentService;
 
     @Override
     @Transactional
@@ -130,12 +137,13 @@ public class ScheduleServiceImpl implements ScheduleService {
 
         if (request.capacity() != null) {
             requireCapacityWithinTourLimits(request.capacity(), schedule.getTour());
-            // TODO ដំណាក់កាល ４ (F7 Booking)៖ capacity ថ្មីមិនអាចតិចជាងកៅអីដែលកក់រួច
-            //   int booked = bookingRepository.countOccupiedSeats(schedule.getId());
-            //   if (request.capacity() < booked) {
-            //       throw new ResponseStatusException(HttpStatus.CONFLICT,
-            //               "capacity cannot be less than the seats already booked (" + booked + ")");
-            //   }
+            // capacity ថ្មីមិនអាចតិចជាងកៅអីដែលកក់រួច — បើមិនពិនិត្យ ការកក់ដែលមានស្រាប់
+            // នឹងក្លាយជាលើសចំណុះភ្លាមៗ
+            int booked = bookingRepository.countOccupiedSeats(schedule.getId());
+            if (request.capacity() < booked) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "capacity cannot be less than the seats already booked (" + booked + ")");
+            }
             schedule.setCapacity(request.capacity());
         }
 
@@ -189,15 +197,29 @@ public class ScheduleServiceImpl implements ScheduleService {
         schedule.setCancelReason(request.reason());
         scheduleRepository.save(schedule);
 
-        // TODO ដំណាក់កាល ４ (F7 Booking + F8 Payment)៖ លុបចោលការកក់ទាំងអស់ + សងប្រាក់វិញ
-        //   for (Booking booking : bookingRepository.findActiveBySchedule(schedule.getId())) {
-        //       booking.setStatus(BookingStatus.CANCELLED);
-        //       booking.setCancelledAt(LocalDateTime.now());
-        //       booking.setCancelReason("Schedule cancelled: " + request.reason());
-        //       bookingRepository.save(booking);
-        //       paymentService.refundFull(booking, "Schedule cancelled");
-        //       notificationService.notifyScheduleCancelled(booking);
-        //   }
+        // លុបចោលការកក់សកម្មទាំងអស់ — ភ្ញៀវមិនអាចទៅដំណើរដែលលែងមានទេ
+        //
+        // ការសងប្រាក់វិញត្រូវ<b>ពេញ ១០០%</b> មិនតាមវិន័យ BR8 ទេ ព្រោះការបោះបង់នេះ
+        // ជាកំហុសរបស់ក្រុមហ៊ុន មិនមែនរបស់ភ្ញៀវ។
+        List<Booking> affected = bookingRepository.findActiveBySchedule(schedule.getId());
+
+        for (Booking booking : affected) {
+            booking.setStatus(BookingStatus.CANCELLED);
+            booking.setCancelledAt(LocalDateTime.now());
+            booking.setCancelReason("Schedule cancelled: " + request.reason());
+            bookingRepository.saveAndFlush(booking);
+
+            // សង ១០០% — ការបោះបង់នេះជាកំហុសក្រុមហ៊ុន មិនមែនរបស់ភ្ញៀវ ដូច្នេះ
+            // មិនអនុវត្តអត្រាពិន័យតាម BR8 ទេ ({@code null} = សងពេញអ្វីដែលបានបង់)។
+            paymentService.refundForBooking(booking, null, "Schedule cancelled: " + request.reason());
+
+            // TODO ដំណាក់កាល ៥៖ notificationService.notifyScheduleCancelled(booking)
+        }
+
+        if (!affected.isEmpty()) {
+            log.warn("Schedule {} cancelled — {} booking(s) cancelled and refunded",
+                    schedule.getCode(), affected.size());
+        }
 
         return toResponseWithSeats(schedule);
     }
@@ -231,16 +253,22 @@ public class ScheduleServiceImpl implements ScheduleService {
         completing.forEach(schedule -> schedule.setStatus(ScheduleStatus.COMPLETED));
         scheduleRepository.saveAll(completing);
 
-        // TODO ដំណាក់កាល ４ (F7 Booking)៖ ការកក់ CONFIRMED → COMPLETED + អញ្ជើញវាយតម្លៃ
-        //   for (TourSchedule schedule : completing) {
-        //       for (Booking booking : bookingRepository.findByScheduleAndStatus(schedule.getId(), CONFIRMED)) {
-        //           booking.setStatus(BookingStatus.COMPLETED);
-        //           bookingRepository.save(booking);
-        //           notificationService.inviteToReview(booking);
-        //       }
-        //   }
+        // គ. ការកក់ CONFIRMED នៃដំណើរដែលបញ្ចប់ → COMPLETED
+        int completedBookings = 0;
 
-        log.info("refreshScheduleStatuses: DEPARTED {} · COMPLETED {}", departing.size(), completing.size());
+        for (TourSchedule schedule : completing) {
+            List<Booking> confirmed = bookingRepository
+                    .findByScheduleIdAndStatusAndIsDeletedFalse(schedule.getId(), BookingStatus.CONFIRMED);
+
+            confirmed.forEach(booking -> booking.setStatus(BookingStatus.COMPLETED));
+            bookingRepository.saveAll(confirmed);
+            completedBookings += confirmed.size();
+
+            // TODO ដំណាក់កាល ៤ (F9 Review)៖ notificationService.inviteToReview(booking)
+        }
+
+        log.info("refreshScheduleStatuses: DEPARTED {} · COMPLETED {} · bookings completed {}",
+                departing.size(), completing.size(), completedBookings);
     }
 
     // ---------- ជំនួយខាងក្នុង ----------
@@ -314,9 +342,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     /** បំពេញកៅអី និងតម្លៃពិត — ទិន្នន័យដែលគណនាពេលអាន មិនរក្សាទុក។ */
     private ScheduleResponse toResponseWithSeats(TourSchedule schedule) {
 
-        // TODO ដំណាក់កាល ４ (F7 Booking)៖ បូកកៅអីដែលកក់រួច
-        //   int booked = bookingRepository.countOccupiedSeats(schedule.getId());
-        int booked = 0;
+        int booked = bookingRepository.countOccupiedSeats(schedule.getId());
 
         int available = schedule.getCapacity() - booked;
 
