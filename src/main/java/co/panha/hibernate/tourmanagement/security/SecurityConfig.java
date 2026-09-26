@@ -57,6 +57,7 @@ public class SecurityConfig {
                 // ---------- សាធារណៈ៖ អានបាន មិនបាច់ login ----------
                 .requestMatchers(HttpMethod.GET, "/api/v1/categories/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/destinations/**").permitAll()
+                // គ្របដណ្តប់ /tours/{id}/reviews និង /reviews/summary ដែរ
                 .requestMatchers(HttpMethod.GET, "/api/v1/tours/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/schedules/*").permitAll()
 
@@ -70,6 +71,10 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/bookings").hasAuthority("ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/v1/bookings/*/refunds").hasAuthority("ADMIN")
                 .requestMatchers("/api/v1/payments/**").hasAuthority("ADMIN")
+
+                // ---------- Review៖ ADMIN ឆ្លើយតប និងលាក់ ----------
+                .requestMatchers(HttpMethod.POST, "/api/v1/reviews/*/reply").hasAuthority("ADMIN")
+                .requestMatchers(HttpMethod.PATCH, "/api/v1/reviews/*/hide").hasAuthority("ADMIN")
 
                 // សង្ខេបទូទាត់ — ម្ចាស់ ឬ ADMIN (Service ពិនិត្យម្ចាស់ខ្លួនឯង)
                 .requestMatchers(HttpMethod.GET, "/api/v1/bookings/*/payments")

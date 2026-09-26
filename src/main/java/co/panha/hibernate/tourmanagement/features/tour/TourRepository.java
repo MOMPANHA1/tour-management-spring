@@ -57,15 +57,8 @@ public interface TourRepository extends JpaRepository<Tour, Long>, JpaSpecificat
             """)
     long countActiveByDestination(@Param("destinationId") Long destinationId);
 
-    // TODO ដំណាក់កាល ៣ (F9 Review)៖ គណនា averageRating និង reviewCount ឡើងវិញ
-    //   @Modifying
-    //   @Query("""
-    //           UPDATE Tour t SET
-    //              t.averageRating = (SELECT COALESCE(AVG(r.rating), 0) FROM Review r
-    //                                 WHERE r.tour.id = :tourId AND r.isDeleted = false),
-    //              t.reviewCount   = (SELECT COUNT(r) FROM Review r
-    //                                 WHERE r.tour.id = :tourId AND r.isDeleted = false)
-    //           WHERE t.id = :tourId
-    //           """)
-    //   void recalculateRating(@Param("tourId") Long tourId);
+    // ចំណាំ៖ {@code averageRating} និង {@code reviewCount} គណនាឡើងវិញដោយ
+    //   ReviewServiceImpl.recalculateTourRating() — ប្រើ entity save ជំនួស @Modifying
+    //   bulk update ព្រោះ bulk update រំលង persistence context ហើយធ្វើឲ្យ entity
+    //   ដែលកំពុងកាន់ក្នុង transaction ដដែលមានតម្លៃចាស់។
 }
