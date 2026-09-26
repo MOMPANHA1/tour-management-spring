@@ -1,4 +1,4 @@
 /**
- * DTO (Request / Response) សម្រាប់ feature customer។
+ * DTO សម្រាប់ F6 — អតិថិជន (Customer)។
  */
 package co.panha.hibernate.tourmanagement.features.customer.dto;
