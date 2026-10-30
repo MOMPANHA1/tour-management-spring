@@ -141,6 +141,7 @@ erDiagram
 
     CUSTOMERS {
         bigint  id            PK
+        varchar keycloak_id   UK "36 · sub claim"
         varchar username      UK "60"
         varchar full_name     "120"
         varchar email         UK "120"
@@ -439,7 +440,8 @@ PK សមាសធាតុ `(tour_id, destination_id)`។ ខាង `Destinatio
 
 | Column | ប្រភេទ | Null | Constraint |
 |---|---|---|---|
-| `username` | `VARCHAR(60)` | ❌ | **UNIQUE** — តំណទៅប្រព័ន្ធ auth |
+| `keycloak_id` | `VARCHAR(36)` | ❌ | **UNIQUE** — **ស្ពានទៅ Keycloak** (claim `sub`) |
+| `username` | `VARCHAR(60)` | ❌ | **UNIQUE** — សម្រាប់បង្ហាញ និងស្វែងរក |
 | `full_name` | `VARCHAR(120)` | ❌ | |
 | `email` | `VARCHAR(120)` | ❌ | **UNIQUE** |
 | `phone_number` | `VARCHAR(20)` | ❌ | **UNIQUE** |
@@ -451,7 +453,11 @@ PK សមាសធាតុ `(tour_id, destination_id)`។ ខាង `Destinatio
 | `avatar_url` | `VARCHAR(255)` | ✅ | |
 | `status` | `VARCHAR` | ✅ | ENUM `CustomerStatus` |
 
-> ⚠️ **គ្មាន column `password`** — ការផ្ទៀងផ្ទាត់អត្តសញ្ញាណត្រូវធ្វើនៅខាងក្រៅ (Keycloak)។ `username` ជាស្ពានភ្ជាប់រវាង JWT និងតារាងនេះ (`AuthUtils.currentUsername(auth)` → `findByUsername`)។
+> ⚠️ **គ្មាន column `password`** — ការផ្ទៀងផ្ទាត់អត្តសញ្ញាណធ្វើនៅខាងក្រៅ (Keycloak)។ តារាងនេះកាន់តែប្រវត្តិរូប។
+>
+> **ស្ពានភ្ជាប់គឺ `keycloak_id` មិនមែន `username` ទេ** (`AuthUtils.currentKeycloakId()` → `findByKeycloakIdAndIsDeletedFalse`)។ ហេតុផល៖ `username` អាចប្តូរបានក្នុង Keycloak តែ claim `sub` មិនប្តូរជារៀងរហូត — បើប្រើ username ជាស្ពាន អតិថិជនប្តូរឈ្មោះម្តងគឺបាត់ទំនាក់ទំនងនឹងការកក់ទាំងអស់។
+>
+> រក្សា `id` ជា `BIGINT` ដដែល ដូច្នេះ FK ក្នុង `bookings` និង `reviews` មិនចាំបាច់ប្តូរ។
 
 ---
 

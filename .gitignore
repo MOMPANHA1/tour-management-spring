@@ -35,3 +35,8 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### Docker / secrets ###
+.env
+certs/keycloak/
+certs/truststore.jks

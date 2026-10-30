@@ -180,7 +180,14 @@ POST /api/v1/customers/register   -> RegisterCustomerRequest
 | `phoneNumber` | `^0[1-9][0-9]{7,8}$` | "លេខទូរស័ព្ទត្រូវចាប់ផ្តើមដោយ 0 និងមាន ៩–១០ ខ្ទង់" |
 | `dateOfBirth` | `@Past` | ប្រើ date-picker ដែលបិទថ្ងៃអនាគត |
 
-> ⚠️ **ចន្លោះប្រហោងក្នុងផែនការ**: `Customer` entity **គ្មាន field `password`** ហើយ `RegisterCustomerRequest` ក៏គ្មានដែរ។ មានន័យថាការ authenticate ត្រូវធ្វើតាមប្រព័ន្ធខាងក្រៅ (Keycloak) ដែល `username` ជាតំណភ្ជាប់។ **ត្រូវសម្រេចរឿងនេះមុនសរសេរ F6** ព្រោះវាប៉ះពាល់ដល់អេក្រង់ login ទាំងមូល។
+> ✅ **ចន្លោះប្រហោងនេះត្រូវបានដោះស្រាយរួចហើយ**: ការផ្ទៀងផ្ទាត់អត្តសញ្ញាណធ្វើដោយ **Keycloak**។
+>
+> - `Customer` នៅតែ**គ្មាន column `password`** — ពាក្យសម្ងាត់ស្ថិតក្នុង Keycloak ប៉ុណ្ណោះ
+> - `RegisterCustomerRequest` **មាន** `password` + `confirmedPassword` ដែលផ្ញើបន្តទៅ Keycloak ហើយបោះចោល
+> - ស្ពានភ្ជាប់គឺ **`Customer.keycloakId`** (claim `sub`) មិនមែន `username` ទេ
+> - អេក្រង់ login ទៅយក token តាម Keycloak ផ្ទាល់ រួចភ្ជាប់ `Authorization: Bearer <JWT>` ទៅគ្រប់សំណើ
+>
+> មើលលម្អិតនៅ [`pseudo-code.md` §X.3](./pseudo-code.md) និង §០.៩។
 
 ---
 

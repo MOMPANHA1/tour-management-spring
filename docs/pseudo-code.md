@@ -80,7 +80,7 @@ ORELSE THROW <ErrorType>("...")       Optional ទទេ → បោះកំហ�
 | `THROW ResponseStatusException(HttpStatus.FORBIDDEN, ...)` | 403 | login ហើយ តែគ្មានសិទ្ធិ |
 | `THROW ResponseStatusException(HttpStatus.NOT_FOUND, ...)` | 404 | រកមិនឃើញធនធាន |
 | `THROW ResponseStatusException(HttpStatus.CONFLICT, ...)` | 409 | ស្ទួន · ស្ថានភាពមិនអនុញ្ញាត · អស់កៅអី |
-| `THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, ...)` | 422 | ត្រឹមត្រូវតាមទម្រង់ តែខុសវិន័យអាជីវកម្ម |
+| `THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT, ...)` | 422 | ត្រឹមត្រូវតាមទម្រង់ តែខុសវិន័យអាជីវកម្ម |
 
 ### ០.៥ Field រួមគ្រប់ Entity (Base Auditing)
 
@@ -154,6 +154,29 @@ Booking   1 ────  1  Review
 Tour      1 ────< N  Review
 Customer  1 ────< N  Review
 ```
+
+### ០.៩ ភាពខុសគ្នារវាងឯកសារនេះ និងកូដពិត
+
+ឯកសារនេះជា**ផែនការរចនា** ហើយកូដបានវិវត្តបន្តិចនៅពេលអនុវត្ត។ ចំណុចខាងក្រោមជាការ
+ផ្លាស់ប្តូរដោយចេតនា — កូដជាប្រភពត្រឹមត្រូវ មិនមែនឯកសារទេ។
+
+| # | ឯកសារសរសេរ | កូដពិត | ហេតុផល |
+|---|---|---|---|
+| ១ | សារកំហុសជាភាសាខ្មែរ | **អង់គ្លេស** | សារ API ងាយសម្រាប់ frontend និង log ជាង។ *javadoc និងមតិយោបល់ក្នុងកូដនៅជាខ្មែរដដែល។* |
+| ២ | `username` ជាស្ពានទៅ auth | **`keycloakId`** | username ប្តូរបានក្នុង Keycloak តែ `sub` មិនប្តូរ (មើល §X.3) |
+| ៣ | `ROLE_ADMIN` | **`ADMIN`** គ្មាន prefix | converter បម្លែង `realm_access.roles` ត្រង់ៗ |
+| ៤ | Controller ទទួល `Authentication auth` | Service អាន JWT ខ្លួនឯង | កុំឲ្យវិន័យសិទ្ធិខ្ចាត់ខ្ចាយចេញពី Service layer |
+| ៥ | `RegisterCustomerRequest` គ្មាន password | **មាន `password` + `confirmedPassword`** | ការចុះឈ្មោះបង្កើត user ក្នុង Keycloak ផង |
+| ៦ | `BookingDetailResponse EXTENDS BookingResponse` | record ដាច់ដោយឡែក | Java record ពង្រីកមិនបាន |
+| ៧ | មិនមែនម្ចាស់ → **403** | **404** | 403 ប្រាប់អ្នកវាយប្រហារថាលេខកូដនោះមានពិត |
+| ៨ | `paymentService.refundFull(...)` | `refundForBooking(booking, amount, reason)` | method តែមួយ · `amount = null` មានន័យថាសងពេញ · មិនបោះ exception បើគ្មានអ្វីត្រូវសង |
+| ៩ | `TourRepository.recalculateRating()` bulk update | `ReviewServiceImpl.recalculateTourRating()` | bulk update រំលង persistence context ធ្វើឲ្យ entity មានតម្លៃចាស់ |
+| ១០ | — | **`syncScheduleAvailability()`** ថ្មី | ឯកសារបើកកៅអីវិញតែពេលលុបចោល — តែការកែអ្នកដំណើរក៏ប្តូរចំនួនកៅអីដែរ (ទាំងពីរទិស) |
+| ១១ | `DATE(x) BETWEEN` ក្នុង JPQL | ចន្លោះ `>= start AND < end` | `DATE()` មិនស្តង់ដារក្នុង JPQL ហើយបំបែក index |
+
+> ⚠️ **ចន្លោះប្រហោងសុវត្ថិភាពដែលដឹងច្បាស់** — វិធីទូទាត់ `ABA_PAY · KHQR · CREDIT_CARD · WING`
+> កំណត់ `VERIFIED` ភ្លាម **ដោយគ្មានការផ្ទៀងផ្ទាត់ជាមួយ payment gateway ណាមួយទេ**។ ពេលភ្ជាប់
+> gateway ពិត ត្រូវឲ្យ `VERIFIED` កំណត់ដោយ **webhook** មិនមែនដោយ endpoint `POST /payments`។
 
 ---
 
@@ -877,15 +900,15 @@ FUNCTION publish(id, shouldPublish) -> TourDetailResponse:
     IF shouldPublish == true THEN
         # វិន័យ៖ បើកលក់បានលុះត្រាតែពេញលក្ខខណ្ឌ
         IF tour.description IS EMPTY THEN
-            THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "ត្រូវបំពេញការពិពណ៌នាមុនបើកលក់")
+            THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT, "ត្រូវបំពេញការពិពណ៌នាមុនបើកលក់")
         IF tour.thumbnailUrl IS EMPTY THEN
-            THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "ត្រូវដាក់រូបភាពគម្របមុនបើកលក់")
+            THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT, "ត្រូវដាក់រូបភាពគម្របមុនបើកលក់")
         IF tour.destinations IS EMPTY THEN
-            THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "ត្រូវមានទីតាំងយ៉ាងតិច ១")
+            THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT, "ត្រូវមានទីតាំងយ៉ាងតិច ១")
 
         openSchedules = scheduleRepo.countOpenSchedules(tour.id, today())
         IF openSchedules == 0 THEN
-            THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "ត្រូវមានកាលវិភាគចេញដំណើរយ៉ាងតិច ១ មុនបើកលក់")
+            THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT, "ត្រូវមានកាលវិភាគចេញដំណើរយ៉ាងតិច ១ មុនបើកលក់")
 
     SET tour.isPublished = shouldPublish
     RETURN mapper.toDetailResponse(tourRepo.save(tour))
@@ -1065,7 +1088,7 @@ FUNCTION createNew(req) -> ScheduleResponse:
     # ៣. Check Rules
     actualDays = daysBetween(req.departureDate, req.returnDate) + 1
     IF actualDays != tour.durationDays THEN
-        THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, 
+        THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT, 
             "រយៈពេលមិនត្រូវគ្នា — Tour នេះមាន " + tour.durationDays + " ថ្ងៃ តែកាលវិភាគមាន " + actualDays)
 
     IF req.capacity > tour.maxGroupSize THEN
@@ -1257,6 +1280,8 @@ DTO RegisterCustomerRequest:
     gender       : Gender
     dateOfBirth  : LocalDate  @Past
     nationality  : String     @Size(max=80)
+    password          : String  @NotBlank @Size(min=8, max=72)   # ផ្ញើទៅ Keycloak មិនរក្សាទុកក្នុង DB
+    confirmedPassword : String  @NotBlank
 
 DTO PatchCustomerRequest:       # គ្រប់ field nullable; username និង email កែមិនបាន
     fullName, phoneNumber, gender, dateOfBirth
@@ -1280,7 +1305,7 @@ DTO CustomerResponse:
 REPOSITORY CustomerRepository EXTENDS JpaRepository<Customer, Long>
 
     findByIdAndIsDeletedFalse(id)     -> Optional<Customer>
-    findByUsernameAndIsDeletedFalse(u)    -> Optional<Customer>
+    findByKeycloakIdAndIsDeletedFalse(kcId) -> Optional<Customer>
     existsByUsername(username)            -> boolean
     existsByEmail(email)                  -> boolean
     existsByPhoneNumber(phone)            -> boolean
@@ -1313,7 +1338,7 @@ FUNCTION register(req) -> CustomerResponse:
     IF req.dateOfBirth IS NOT NULL THEN
         age = yearsBetween(req.dateOfBirth, today())
         IF age < 16 THEN
-            THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "អ្នកប្រើត្រូវមានអាយុយ៉ាងតិច ១៦ ឆ្នាំ")
+            THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT, "អ្នកប្រើត្រូវមានអាយុយ៉ាងតិច ១៦ ឆ្នាំ")
 
     # ៥. Build
     customer = mapper.toEntity(req)
@@ -1340,7 +1365,7 @@ END FUNCTION
 
 
 FUNCTION findMe(username) -> CustomerResponse:
-    customer = customerRepo.findByUsernameAndIsDeletedFalse(username)
+    customer = customerRepo.findByKeycloakIdAndIsDeletedFalse(AuthUtils.currentKeycloakId())
                ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញគណនីរបស់អ្នក")
     RETURN toResponseWithStats(customer)
 END FUNCTION
@@ -1348,7 +1373,7 @@ END FUNCTION
 
 FUNCTION updateMe(username, req) -> CustomerResponse:
 
-    customer = customerRepo.findByUsernameAndIsDeletedFalse(username)
+    customer = customerRepo.findByKeycloakIdAndIsDeletedFalse(AuthUtils.currentKeycloakId())
                ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញគណនីរបស់អ្នក")
 
     IF customer.status != ACTIVE THEN
@@ -1395,9 +1420,9 @@ END FUNCTION
 CONTROLLER CustomerController  base = "/api/v1/customers"
 
     POST   "/register"         201   @Valid RegisterCustomerRequest
-    GET    "/me"               200   Authentication auth
-           -> RETURN service.findMe(auth.getName())
-    PATCH  "/me"               200   @Valid PatchCustomerRequest, Authentication auth
+    GET    "/me"               200
+           -> RETURN service.findMe()          # Service ទាញអត្តសញ្ញាណពី JWT ខ្លួនឯង
+    PATCH  "/me"               200   @Valid PatchCustomerRequest
     GET    "/"                 200   keyword(optional), page=0, size=10       [ADMIN]
     GET    "/{id}"           200                                            [ADMIN]
     PATCH  "/{id}/status"    200   @Valid UpdateCustomerStatusRequest       [ADMIN]
@@ -1498,7 +1523,7 @@ END FUNCTION
 
 ```
 DTO CreateBookingRequest:
-    scheduleId    : String              @NotBlank
+    scheduleId      : Long                @NotNull
     numberOfPeople  : Integer             @NotNull @Min(1) @Max(20)
     note            : String              @Size(max=500)
     passengers      : List<PassengerRequest>  @NotEmpty @Valid
@@ -1587,7 +1612,7 @@ FUNCTION bookTour(req, username) -> BookingDetailResponse:      # @Transactional
         THROW ResponseStatusException(HttpStatus.BAD_REQUEST, "ត្រូវកំណត់អ្នកដំណើរមេ (isLead) ឲ្យបានតែម្នាក់")
 
     # ═══ ២. LOAD ═══
-    customer = customerRepo.findByUsernameAndIsDeletedFalse(username)
+    customer = customerRepo.findByKeycloakIdAndIsDeletedFalse(AuthUtils.currentKeycloakId())
                ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញគណនីរបស់អ្នក")
 
     # ចាក់សោជួរ (pessimistic lock) ដើម្បីការពារ race condition ពេលកក់ព្រមគ្នា
@@ -1691,7 +1716,7 @@ FUNCTION cancel(code, req, username) -> BookingResponse:        # @Transactional
               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញការកក់លេខ " + code)
 
     # វិន័យសិទ្ធិ
-    IF booking.customer.username != username THEN
+    IF booking.customer.keycloakId != AuthUtils.currentKeycloakId() THEN
         THROW ResponseStatusException(HttpStatus.FORBIDDEN, "អ្នកមិនមានសិទ្ធិលើការកក់នេះទេ")
 
     # វិន័យស្ថានភាព
@@ -1755,7 +1780,7 @@ FUNCTION confirm(code) -> BookingResponse:                      # @Transactional
     # វិន័យទូទាត់                                                                    # BR9
     minimumRequired = booking.totalPrice * 0.50
     IF booking.paidAmount < minimumRequired THEN
-        THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, 
+        THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT, 
             "ត្រូវបង់យ៉ាងតិច ៥០% (" + minimumRequired + ") មុនបញ្ជាក់ — បង់រួច " + booking.paidAmount)
 
     SET booking.status      = CONFIRMED
@@ -1786,7 +1811,7 @@ FUNCTION findByCode(code, username, isAdmin) -> BookingDetailResponse:
     booking = bookingRepo.findByCodeAndIsDeletedFalse(code)
               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញការកក់លេខ " + code)
 
-    IF isAdmin == false AND booking.customer.username != username THEN
+    IF isAdmin == false AND booking.customer.keycloakId != AuthUtils.currentKeycloakId() THEN
         THROW ResponseStatusException(HttpStatus.FORBIDDEN, "អ្នកមិនមានសិទ្ធិមើលការកក់នេះទេ")
 
     RETURN mapper.toDetailResponse(booking)
@@ -1799,7 +1824,7 @@ FUNCTION updatePassengers(code, req, username) -> BookingDetailResponse:   # @Tr
     booking = bookingRepo.findByCodeAndIsDeletedFalse(code)
               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញការកក់លេខ " + code)
 
-    IF booking.customer.username != username THEN
+    IF booking.customer.keycloakId != AuthUtils.currentKeycloakId() THEN
         THROW ResponseStatusException(HttpStatus.FORBIDDEN, "អ្នកមិនមានសិទ្ធិលើការកក់នេះទេ")
 
     IF booking.status != PENDING THEN
@@ -1868,17 +1893,17 @@ END FUNCTION
 ```
 CONTROLLER BookingController  base = "/api/v1/bookings"
 
-    POST   "/"                       201   @Valid CreateBookingRequest, Authentication
-           -> RETURN service.bookTour(body, auth.getName())
+    POST   "/"                       201   @Valid CreateBookingRequest
+           -> RETURN service.bookTour(body)    # Service ទាញអត្តសញ្ញាណពី JWT ខ្លួនឯង
 
-    GET    "/me"                     200   status(optional), page=0, size=10, Authentication
-           -> RETURN service.findMyBookings(auth.getName(), status, page, size)
+    GET    "/me"                     200   status(optional), page=0, size=10
+           -> RETURN service.findMyBookings(status, page, size)
 
-    GET    "/{code}"                 200   Authentication
-           -> RETURN service.findByCode(code, auth.getName(), hasRole("ADMIN"))
+    GET    "/{code}"                 200
+           -> RETURN service.findByCode(code)  # Service ពិនិត្យម្ចាស់ ឬ AuthUtils.isAdmin()
 
-    PATCH  "/{code}/cancel"          200   @Valid CancelBookingRequest, Authentication
-    PATCH  "/{code}/passengers"      200   @Valid UpdatePassengersRequest, Authentication
+    PATCH  "/{code}/cancel"          200   @Valid CancelBookingRequest
+    PATCH  "/{code}/passengers"      200   @Valid UpdatePassengersRequest
     PATCH  "/{code}/confirm"         200                                     [ADMIN]
     GET    "/"                       200   status, fromDate, toDate, page, size  [ADMIN]
 ```
@@ -2029,7 +2054,7 @@ FUNCTION pay(bookingCode, req, username) -> PaymentResponse:    # @Transactional
               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញការកក់លេខ " + bookingCode)
 
     # ═══ ៣. CHECK RULES ═══
-    IF booking.customer.username != username THEN
+    IF booking.customer.keycloakId != AuthUtils.currentKeycloakId() THEN
         THROW ResponseStatusException(HttpStatus.FORBIDDEN, "អ្នកមិនមានសិទ្ធិទូទាត់លើការកក់នេះទេ")
 
     IF booking.status == CANCELLED THEN                                        # BR2
@@ -2059,16 +2084,16 @@ FUNCTION pay(bookingCode, req, username) -> PaymentResponse:    # @Transactional
         THROW ResponseStatusException(HttpStatus.CONFLICT, "ការកក់នេះបានទូទាត់គ្រប់ចំនួនរួចហើយ")
 
     IF req.amount > remaining THEN                                             # BR3
-        THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, 
+        THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT, 
             "ទឹកប្រាក់លើសចំនួនដែលនៅសល់ — នៅសល់ត្រូវបង់ " + remaining)
 
     IF req.type == DEPOSIT THEN                                                # BR4
         minDeposit = booking.totalPrice * 0.30
         IF req.amount < minDeposit THEN
-            THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "ប្រាក់កក់ត្រូវយ៉ាងតិច ៣០% (" + minDeposit + ")")
+            THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT, "ប្រាក់កក់ត្រូវយ៉ាងតិច ៣០% (" + minDeposit + ")")
 
     IF req.type == FULL_PAYMENT AND req.amount != remaining THEN
-        THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "FULL_PAYMENT ត្រូវស្មើនឹងចំនួននៅសល់ (" + remaining + ")")
+        THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT, "FULL_PAYMENT ត្រូវស្មើនឹងចំនួននៅសល់ (" + remaining + ")")
 
     # ═══ ៥. BUILD ═══
     payment = NEW Payment
@@ -2185,7 +2210,7 @@ FUNCTION createRefund(booking, amount, reason) -> PaymentResponse:   # @Transact
     maxRefundable = verified - refunded
 
     IF amount > maxRefundable THEN                                             # BR7
-        THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "សងវិញបានច្រើនបំផុត " + maxRefundable)
+        THROW ResponseStatusException(HttpStatus.UNPROCESSABLE_CONTENT, "សងវិញបានច្រើនបំផុត " + maxRefundable)
 
     refund = NEW Payment
     SET refund.referenceNo = generatePaymentRef()
@@ -2224,7 +2249,7 @@ FUNCTION getSummary(bookingCode, username, isAdmin) -> PaymentSummaryResponse:
     booking = bookingRepo.findByCodeAndIsDeletedFalse(bookingCode)
               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញការកក់លេខ " + bookingCode)
 
-    IF isAdmin == false AND booking.customer.username != username THEN
+    IF isAdmin == false AND booking.customer.keycloakId != AuthUtils.currentKeycloakId() THEN
         THROW ResponseStatusException(HttpStatus.FORBIDDEN, "អ្នកមិនមានសិទ្ធិមើលការទូទាត់នេះទេ")
 
     verified = paymentRepo.sumVerifiedAmount(booking.id)
@@ -2273,14 +2298,14 @@ END FUNCTION
 ```
 CONTROLLER BookingPaymentController  base = "/api/v1/bookings/{code}"
 
-    POST   "/payments"      201   @Valid CreatePaymentRequest, Authentication
-    GET    "/payments"      200   Authentication
-           -> RETURN service.getSummary(code, auth.getName(), hasRole("ADMIN"))
+    POST   "/payments"      201   @Valid CreatePaymentRequest
+    GET    "/payments"      200
+           -> RETURN service.getSummary(code)   # Service ពិនិត្យម្ចាស់ ឬ AuthUtils.isAdmin()
     POST   "/refunds"       201   @Valid CreateRefundRequest              [ADMIN]
 
 CONTROLLER PaymentController  base = "/api/v1/payments"
 
-    PATCH  "/{ref}/verify"  200   Authentication                          [ADMIN]
+    PATCH  "/{ref}/verify"  200                                           [ADMIN]
     PATCH  "/{ref}/reject"  200   @Valid RejectPaymentRequest             [ADMIN]
     GET    "/report"        200   fromDate, toDate                        [ADMIN]
 ```
@@ -2421,7 +2446,7 @@ FUNCTION createNew(bookingCode, req, username) -> ReviewResponse:      # @Transa
               ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញការកក់លេខ " + bookingCode)
 
     # ═══ ៣. CHECK RULES ═══
-    IF booking.customer.username != username THEN                              # BR2
+    IF booking.customer.keycloakId != AuthUtils.currentKeycloakId() THEN                              # BR2
         THROW ResponseStatusException(HttpStatus.FORBIDDEN, "អ្នកមិនមែនជាម្ចាស់ការកក់នេះទេ")
 
     IF booking.status != COMPLETED THEN                                        # BR1
@@ -2468,7 +2493,7 @@ FUNCTION updateById(id, req, username) -> ReviewResponse:             # @Transac
     review = reviewRepo.findByIdAndIsDeletedFalse(id)
              ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញការវាយតម្លៃ id = " + id)
 
-    IF review.customer.username != username THEN
+    IF review.customer.keycloakId != AuthUtils.currentKeycloakId() THEN
         THROW ResponseStatusException(HttpStatus.FORBIDDEN, "អ្នកមិនមានសិទ្ធិកែការវាយតម្លៃនេះទេ")
 
     daysSinceCreated = daysBetween(review.createdAt.toLocalDate(), today())
@@ -2496,7 +2521,7 @@ FUNCTION deleteById(id, username) -> void:                            # @Transac
     review = reviewRepo.findByIdAndIsDeletedFalse(id)
              ORELSE THROW ResponseStatusException(HttpStatus.NOT_FOUND, "រកមិនឃើញការវាយតម្លៃ id = " + id)
 
-    IF review.customer.username != username THEN
+    IF review.customer.keycloakId != AuthUtils.currentKeycloakId() THEN
         THROW ResponseStatusException(HttpStatus.FORBIDDEN, "អ្នកមិនមានសិទ្ធិលុបការវាយតម្លៃនេះទេ")
 
     SET review.isDeleted = true
@@ -2679,31 +2704,64 @@ UTIL DateUtils:
 
 ## X.3 Security (សង្ខេប)
 
+ការផ្ទៀងផ្ទាត់អត្តសញ្ញាណធ្វើនៅ**ខាងក្រៅ** ដោយ **Keycloak** — application នេះជា *Resource Server*
+ដែលគ្រាន់តែផ្ទៀងផ្ទាត់ JWT ប៉ុណ្ណោះ។ គ្មាន column `password` ក្នុង database ទេ។
+
 ```
-CONFIG SecurityConfig:
+Keycloak realm : tour-management        Client : tour-backend (confidential)
+Realm roles    : USER · CUSTOMER · ADMIN
+
+CONFIG SecurityConfig:            # STATELESS · បិទ CSRF · oauth2ResourceServer.jwt()
 
     PUBLIC (permitAll):
-        GET  /api/v1/tours/**
+        GET  /api/v1/tours/**              (រួមទាំង /tours/{id}/reviews និង /reviews/summary)
         GET  /api/v1/categories/**
         GET  /api/v1/destinations/**
+        GET  /api/v1/schedules/{id}
         GET  /api/v1/guides/{id}
         POST /api/v1/customers/register
         /swagger-ui/**, /v3/api-docs/**
 
-    ROLE_CUSTOMER:
-        /api/v1/customers/me, /api/v1/bookings/**, /api/v1/reviews/**
+    ADMIN (ប្រកាសមុន ព្រោះជាករណីលើកលែងក្នុងផ្លូវរបស់ CUSTOMER):
+        PATCH /api/v1/bookings/{code}/confirm
+        GET   /api/v1/bookings                    POST /api/v1/bookings/{code}/refunds
+        /api/v1/payments/**
+        POST  /api/v1/reviews/{id}/reply          PATCH /api/v1/reviews/{id}/hide
 
-    ROLE_ADMIN:
-        គ្រប់ endpoint ដែលនៅសល់
+    CUSTOMER:
+        /api/v1/customers/me/**, /api/v1/bookings/**, /api/v1/reviews/**
 
-UTIL AuthUtils:
-    FUNCTION currentUsername(auth) -> String
-        IF auth IS NULL THEN THROW ResponseStatusException(HttpStatus.UNAUTHORIZED, "សូម login សិន")
-        RETURN auth.getName()
+    CUSTOMER ឬ ADMIN (Service ពិនិត្យម្ចាស់ខ្លួនឯង):
+        GET /api/v1/bookings/{code}               GET /api/v1/bookings/{code}/payments
 
-    FUNCTION isAdmin(auth) -> boolean
-        RETURN auth.authorities CONTAINS "ROLE_ADMIN"
+    ADMIN: គ្រប់ endpoint ដែលនៅសល់
 ```
+
+> ⚠️ **គ្មាន prefix `ROLE_`** — converter បម្លែង claim `realm_access.roles` ទៅ authority ត្រង់ៗ។
+> ត្រូវប្រើ `hasAuthority("ADMIN")` — បើប្រើ `hasRole("ADMIN")` Spring បន្ថែម `ROLE_` ដោយស្វ័យប្រវត្តិ
+> ហើយ **មិនដែលផ្គូផ្គង**ជាដាច់ខាត។
+
+```
+UTIL AuthUtils:                   # static — អានពី SecurityContextHolder ដោយផ្ទាល់
+
+    FUNCTION currentKeycloakId() -> String      # claim `sub` — ស្ពានទៅតារាង customers
+        IF auth IS NOT JwtAuthenticationToken THEN
+            THROW ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authentication is required")
+        RETURN jwt.getSubject()
+
+    FUNCTION currentUsername() -> String        # claim `preferred_username` — សម្រាប់បង្ហាញ/log
+    FUNCTION isAdmin()         -> boolean       # hasAuthority("ADMIN")
+    FUNCTION requireOwnerOrAdmin(ownerKeycloakId)   # បោះ 403 បើមិនមែន
+
+SERVICE KeycloakUserService:      # ហៅ Keycloak Admin REST API
+    createUser(username, email, fullName, password) -> keycloakId
+    deleteUserQuietly(keycloakId)               # compensation ពេល database បរាជ័យ
+    setEnabled(keycloakId, enabled)             # ផ្អាក/ដោះការផ្អាកគណនី
+```
+
+> **ស្ពានភ្ជាប់គឺ `Customer.keycloakId`** មិនមែន `username` ទេ — ព្រោះ username ប្តូរបានក្នុង
+> Keycloak តែ `sub` មិនប្តូរជារៀងរហូត។ តារាង `customers` រក្សា `Long id` ដដែល ដូច្នេះ FK
+> `BIGINT` ក្នុង `bookings` និង `reviews` មិនប៉ះ។
 
 ## X.4 លំដាប់អនុវត្ត (Implementation Order)
 
@@ -2732,11 +2790,19 @@ UTIL AuthUtils:
   [13] F9 Review         (ពឹង Booking + Tour)
 
 ដំណាក់កាល ៥ — បន្ថែម
-  [14] security/SecurityConfig
+  [14] security/SecurityConfig + Keycloak
   [15] Scheduled jobs (refreshScheduleStatuses, autoCancelExpiredPending)
   [16] notification service
   [17] Swagger / OpenAPI
 ```
+
+> ⚠️ **លំដាប់ពិតដែលបានអនុវត្តខុសពីនេះ**៖ ដំណាក់កាល ៥ ធ្វើ **មុន** F6 ព្រោះ
+> `POST /customers/register` *គឺជា* ការហៅ Keycloak ដោយផ្ទាល់ — សរសេរ F6 មុនមានន័យថា
+> ត្រូវសរសេរវាឡើងវិញទាំងស្រុងពេលដាក់ security។ លំដាប់ដែលដំណើរការ៖
+>
+> ```
+> ១–៣ (ដូចដើម) → security + Keycloak → F6 → F7 → F8 → F9 → notification
+> ```
 
 ## X.5 បញ្ជីត្រួតពិនិត្យមុនចាប់ផ្តើមកូដ Feature នីមួយៗ
 

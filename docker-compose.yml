@@ -7,13 +7,19 @@ services:
     environment:
       POSTGRES_DB: tour-management
       POSTGRES_USER: panha
-      POSTGRES_PASSWORD: panha
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
 
     ports:
       - "1000:5432"
 
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U panha -d tour-management"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # Database ដាច់ដោយឡែកសម្រាប់ Keycloak។
   #
@@ -27,37 +33,109 @@ services:
     environment:
       POSTGRES_DB: keycloak
       POSTGRES_USER: keycloak
-      POSTGRES_PASSWORD: keycloak
+      POSTGRES_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?set KEYCLOAK_DB_PASSWORD in .env}
 
     volumes:
       - keycloak_postgres_data:/var/lib/postgresql/data
 
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # Keycloak — ប្រព័ន្ធផ្ទៀងផ្ទាត់អត្តសញ្ញាណ (Identity Provider)។
   #
-  # `start-dev` សម្រាប់ការអភិវឌ្ឍតែប៉ុណ្ណោះ — បិទ HTTPS និងបើក Admin Console ដោយសេរី។
-  # ពេលដាក់ production ត្រូវប្តូរទៅ `start` ជាមួយ KC_HOSTNAME និង certificate។
+  # `start` (មិនមែន `start-dev`) សម្រាប់ production, ដោយ Keycloak ខ្លួនឯង terminate TLS
+  # ដោយប្រើ self-signed cert (មិនប្រើ reverse proxy ខាងមុខទេ)។ ត្រូវរត់
+  # `certs/generate-self-signed.sh <your-domain-or-ip>` មុន `docker compose up`។
+  #
+  # KC_HOSTNAME ត្រូវជា URL ពេញលេញ (រួម scheme+port) ដូច្នេះ issuer (`iss`) ក្នុង JWT
+  # នៅតែថេរ ទោះបីជា request មកពី browser សាធារណៈ ឬពី app ខាងក្នុង docker network ក៏ដោយ។
   keycloak:
     image: quay.io/keycloak/keycloak:26.0
     container_name: panha-keycloak
     restart: unless-stopped
-    command: start-dev
+    command: start
 
     environment:
-      KC_BOOTSTRAP_ADMIN_USERNAME: admin
-      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?set KEYCLOAK_ADMIN_PASSWORD in .env}
 
       KC_DB: postgres
       KC_DB_URL: jdbc:postgresql://keycloak-postgres:5432/keycloak
       KC_DB_USERNAME: keycloak
-      KC_DB_PASSWORD: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?set KEYCLOAK_DB_PASSWORD in .env}
+
+      KC_HTTPS_CERTIFICATE_FILE: /opt/keycloak/certs/tls.crt
+      KC_HTTPS_CERTIFICATE_KEY_FILE: /opt/keycloak/certs/tls.key
+      KC_HOSTNAME: ${KC_HOSTNAME:?set KC_HOSTNAME to a full URL, e.g. https://auth.example.com:1001}
 
       KC_HEALTH_ENABLED: "true"
 
+    volumes:
+      - ./certs/keycloak:/opt/keycloak/certs:ro
+
     ports:
-      - "1001:8080"
+      - "1001:8443"
 
     depends_on:
-      - keycloak-postgres
+      keycloak-postgres:
+        condition: service_healthy
+
+    healthcheck:
+      # Image មិនមាន curl/wget/openssl ទេ — ត្រូវប្រើ bash /dev/tcp ត្រួតពិនិត្យថា
+      # management port (9000) កំពុងទទួល connection ជំនួសវិញ។
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/9000' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  app:
+    image: panha1823/tour-management-spring:${APP_IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: panha-tour-app
+    restart: unless-stopped
+
+    environment:
+      SERVER_PORT: 9090
+
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/tour-management
+      SPRING_DATASOURCE_USERNAME: panha
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+
+      # ត្រូវជា string ដូចគ្នាបេះបិទនឹង KC_HOSTNAME ខាងលើ ព្រោះនោះជា `iss` claim ដែល
+      # Keycloak ដាក់ក្នុង JWT ជានិច្ច (ថេរ ទោះបីជា request មកពីណាក៏ដោយ)។ Spring Resource
+      # Server គ្រាន់តែប្រៀបធៀប string នេះ — មិនហៅបណ្តាញទៅ URL នេះទេ។
+      KEYCLOAK_ISSUER_URI: ${KC_HOSTNAME}/realms/${KEYCLOAK_REALM:-tour-management}
+
+      # ការហៅបណ្តាញពិតប្រាកដ (ទាញ JWKS + admin client) កើតឡើងខាងក្នុង docker network
+      # ទៅ container `keycloak` ដោយផ្ទាល់ — ជៀសវាងបញ្ហា hairpin NAT នៃការហៅត្រឡប់ចេញក្រៅ
+      # រួចត្រឡប់ចូលមកវិញ។ ត្រូវ trust cert self-signed នេះតាមរយៈ truststore.jks ខាងក្រោម។
+      KEYCLOAK_JWK_SET_URI: https://keycloak:8443/realms/${KEYCLOAK_REALM:-tour-management}/protocol/openid-connect/certs
+      KEYCLOAK_SERVER_URL: https://keycloak:8443
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-tour-management}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-tour-backend}
+      KEYCLOAK_CLIENT_SECRET: ${KEYCLOAK_CLIENT_SECRET:?set KEYCLOAK_CLIENT_SECRET in .env}
+
+      JAVA_TOOL_OPTIONS: >-
+        -Djavax.net.ssl.trustStore=/certs/truststore.jks
+        -Djavax.net.ssl.trustStorePassword=${TRUSTSTORE_PASSWORD:-changeit}
+
+    volumes:
+      - ./certs/truststore.jks:/certs/truststore.jks:ro
+
+    ports:
+      - "9090:9090"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
 
 volumes:
   postgres_data:

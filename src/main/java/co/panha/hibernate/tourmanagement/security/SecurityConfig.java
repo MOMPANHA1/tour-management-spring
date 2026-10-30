@@ -1,5 +1,6 @@
 package co.panha.hibernate.tourmanagement.security;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
@@ -37,6 +38,10 @@ public class SecurityConfig {
     private static final String[] DOCS_WHITELIST = {
             "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**"
     };
+
+    /** ត្រូវដូចនឹង {@code keycloak.client-id} — ប្រើសម្រាប់អាន client role ពី {@code resource_access}។ */
+    @Value("${keycloak.client-id}")
+    private String clientId;
 
     @Bean
     public SecurityFilterChain apiFilterChain(HttpSecurity http) throws Exception {
@@ -113,9 +118,14 @@ public class SecurityConfig {
     /**
      * បម្លែង role របស់ Keycloak ទៅជា authority របស់ Spring។
      *
-     * <p>Keycloak ដាក់ role ក្នុង claim ដែលមានរចនាសម្ព័ន្ធ
-     * {@code {"realm_access": {"roles": ["ADMIN", "USER"]}}} — Spring មិនស្គាល់ទម្រង់នេះទេ
-     * ដូច្នេះត្រូវបម្លែងដោយដៃ។
+     * <p>Keycloak ដាក់ realm role ក្នុង claim {@code {"realm_access": {"roles": [...]}}} និង
+     * client role (role បង្កើតនៅក្នុង client ដូចជា {@code tour-backend}) ក្នុង claim
+     * {@code {"resource_access": {"tour-backend": {"roles": [...]}}}} — ជា claim ខុសគ្នាទាំងស្រុង។
+     * ដូច្នេះត្រូវអានទាំងពីរ ដើម្បីកុំឲ្យ role ដែលបង្កើតក្នុង client បាត់។
+     *
+     * <p>Role name ត្រូវបម្លែងទៅជា uppercase ព្រោះ {@code hasAuthority("ADMIN")} ក្នុង
+     * {@link #apiFilterChain} ប្រៀបធៀបជា case-sensitive — Keycloak អាចអនុញ្ញាតឲ្យបង្កើត role ជា
+     * {@code admin} lowercase ក៏បាន។
      *
      * <p><b>គ្មាន prefix {@code ROLE_}</b> — ដូច្នេះត្រូវប្រើ {@code hasAuthority("ADMIN")}។
      * បើប្រើ {@code hasRole("ADMIN")} Spring នឹងបន្ថែម {@code ROLE_} ដោយស្វ័យប្រវត្តិ
@@ -125,21 +135,24 @@ public class SecurityConfig {
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
 
         Converter<Jwt, Collection<GrantedAuthority>> converter = jwt -> {
+            Set<GrantedAuthority> authorities = new java.util.HashSet<>();
+
             Map<String, Collection<String>> realmAccess = jwt.getClaim("realm_access");
-
-            if (realmAccess == null) {
-                return Set.of();
+            if (realmAccess != null && realmAccess.get("roles") != null) {
+                realmAccess.get("roles").forEach(role ->
+                        authorities.add(new SimpleGrantedAuthority(role.toUpperCase())));
             }
 
-            Collection<String> roles = realmAccess.get("roles");
-
-            if (roles == null) {
-                return Set.of();
+            Map<String, Map<String, Collection<String>>> resourceAccess = jwt.getClaim("resource_access");
+            if (resourceAccess != null && resourceAccess.get(clientId) != null) {
+                Collection<String> clientRoles = resourceAccess.get(clientId).get("roles");
+                if (clientRoles != null) {
+                    clientRoles.forEach(role ->
+                            authorities.add(new SimpleGrantedAuthority(role.toUpperCase())));
+                }
             }
 
-            return roles.stream()
-                    .map(role -> (GrantedAuthority) new SimpleGrantedAuthority(role))
-                    .collect(Collectors.toSet());
+            return authorities;
         };
 
         JwtAuthenticationConverter jwtAuthenticationConverter = new JwtAuthenticationConverter();
