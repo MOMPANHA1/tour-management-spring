@@ -1,0 +1,57 @@
+# សម្រាប់ demo / អភិវឌ្ឍលើ localhost ប៉ុណ្ណោះ — មិនត្រូវការ .env, HTTPS ឬ certificate ទេ។
+#
+# ប្រើ៖  docker compose -f docker-compose.local.yml up -d
+# បន្ទាប់មករត់ app ដោយ  ./gradlew bootRun  (តម្លៃ default ក្នុង application.properties
+# ចង្អុលមក localhost:1000 (DB) និង localhost:1001 (Keycloak) ត្រូវគ្នាបេះបិទ)។
+#
+# ឈ្មោះ project, container និង volume ដូច docker-compose.yml ដែរ ដូច្នេះទិន្នន័យ
+# និង realm Keycloak ដែលមានស្រាប់ត្រូវបានប្រើឡើងវិញ (មិនបាត់ទិន្នន័យ)។
+name: tour-management-spring
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: panha-app
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: tour-management
+      POSTGRES_USER: panha
+      POSTGRES_PASSWORD: panha
+    ports:
+      - "1000:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  keycloak-postgres:
+    image: postgres:16
+    container_name: panha-keycloak-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak
+    volumes:
+      - keycloak_postgres_data:/var/lib/postgresql/data
+
+  # start-dev៖ HTTP ធម្មតា, issuer = http://localhost:1001/realms/tour-management
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    container_name: panha-keycloak
+    restart: unless-stopped
+    command: start-dev
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak
+      KC_HEALTH_ENABLED: "true"
+    ports:
+      - "1001:8080"
+    depends_on:
+      - keycloak-postgres
+
+volumes:
+  postgres_data:
+  keycloak_postgres_data:
