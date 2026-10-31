@@ -44,13 +44,13 @@ public class BookingServiceImpl implements BookingService {
 
     private static final String CODE_PREFIX = "BK";
 
-    /** BR8 — លុបចោលបានតែមុនថ្ងៃចេញដំណើរយ៉ាងតិច ៣ ថ្ងៃ។ */
+    // BR8: cancellation allowed only at least 3 days before departure.
     private static final int MIN_DAYS_BEFORE_CANCEL = 3;
 
-    /** BR9 — ត្រូវបង់យ៉ាងតិច ៥០% មុនបញ្ជាក់។ */
+    // BR9: at least 50% must be paid before confirmation.
     private static final BigDecimal MIN_PAID_RATE_TO_CONFIRM = new BigDecimal("0.50");
 
-    /** រយៈពេលដែលការកក់ PENDING រង់ចាំការទូទាត់មុនលុបចោលស្វ័យប្រវត្តិ។ */
+    // How long a PENDING booking waits for payment before auto-cancel.
     private static final int PENDING_EXPIRY_HOURS = 24;
 
     private final BookingRepository bookingRepository;
@@ -59,24 +59,16 @@ public class BookingServiceImpl implements BookingService {
     private final BookingMapper bookingMapper;
     private final PaymentService paymentService;
 
-    /**
-     * UC7.1 — កក់ Tour។
-     *
-     * <p><b>ការពារ race condition</b>៖ ចាក់សោជួរកាលវិភាគ ({@code findByIdForUpdate})
-     * មុនរាប់កៅអី។ បើគ្មានសោ អតិថិជនពីរនាក់អាចអានថា «សល់ ២ កៅអី» ព្រមគ្នា ហើយកក់
-     * ម្នាក់ ២ កៅអី — ទៅជាលក់លើសចំណុះ។
-     *
-     * <p>{@code @Version} លើ {@code Booking} មិនគ្រប់គ្រាន់សម្រាប់ករណីនេះទេ ព្រោះវាការពារ
-     * ការកែ <b>ជួរដដែល</b> ប៉ុណ្ណោះ ចំណែកនេះជាការបញ្ចូលជួរ<b>ថ្មីពីរ</b>។
-     */
+    // UC7.1: locks the schedule row (findByIdForUpdate) before counting seats to prevent overselling;
+    // @Version cannot help here because two new rows are inserted, not the same row updated.
     @Override
     @Transactional
     public BookingDetailResponse bookTour(CreateBookingRequest request) {
 
-        // ១. Validate
+        // 1. Validate
         requirePassengerListMatches(request.numberOfPeople(), request.passengers());
 
-        // ២. Load
+        // 2. Load
         Customer customer = loadMe();
 
         TourSchedule schedule = scheduleRepository.findByIdForUpdate(request.scheduleId())
@@ -85,7 +77,7 @@ public class BookingServiceImpl implements BookingService {
 
         Tour tour = schedule.getTour();
 
-        // ៣. Check Rules
+        // 3. Check Rules
         requireActiveCustomer(customer);
 
         if (schedule.getStatus() != ScheduleStatus.OPEN) {
@@ -108,12 +100,12 @@ public class BookingServiceImpl implements BookingService {
         int bookedSeats = bookingRepository.countOccupiedSeats(schedule.getId());
         requireEnoughSeats(request.numberOfPeople(), schedule.getCapacity() - bookedSeats);
 
-        // ៤. Calculate
+        // 4. Calculate
         BigDecimal unitPrice = schedule.effectivePrice();
         BigDecimal subTotal = unitPrice.multiply(BigDecimal.valueOf(request.numberOfPeople()));
         BigDecimal discount = calculateDiscount(request.numberOfPeople(), subTotal);
 
-        // ៥. Build
+        // 5. Build
         Booking booking = new Booking();
         booking.setCode(nextBookingCode());
         booking.setCustomer(customer);
@@ -132,20 +124,20 @@ public class BookingServiceImpl implements BookingService {
         request.passengers().forEach(passenger ->
                 booking.addPassenger(bookingMapper.toPassenger(passenger)));
 
-        // ៦. Save
+        // 6. Save
         Booking saved = bookingRepository.save(booking);
 
-        // ៧. Side Effects
+        // 7. Side Effects
         if (bookedSeats + request.numberOfPeople() >= schedule.getCapacity()) {
             schedule.setStatus(ScheduleStatus.FULL);
             scheduleRepository.save(schedule);
         }
 
-        // TODO ដំណាក់កាល ៥៖ notificationService.sendBookingCreated(saved)
+        // TODO: notificationService.sendBookingCreated(saved)
         log.info("Booking {} created by customer {} for schedule {} ({} seat(s))",
                 saved.getCode(), customer.getId(), schedule.getId(), saved.getNumberOfPeople());
 
-        // ៨. Return
+        // 8. Return
         return toDetailResponse(saved, false);
     }
 
@@ -160,7 +152,7 @@ public class BookingServiceImpl implements BookingService {
                 : bookingRepository.findAllByCustomerIdAndStatusAndIsDeletedFalse(
                         customer.getId(), status, pageable);
 
-        // customerName ទុក null — គ្មានប្រយោជន៍បង្ហាញឈ្មោះខ្លួនឯងក្នុងបញ្ជីខ្លួនឯង
+        // customerName stays null: no point showing a customer their own name.
         return PageMapper.toPageResponse(result, booking -> bookingMapper.toResponse(booking, null));
     }
 
@@ -170,13 +162,7 @@ public class BookingServiceImpl implements BookingService {
         return toDetailResponse(loadByCodeForCurrentUser(code, true), isAdmin);
     }
 
-    /**
-     * UC7.4 — លុបចោល។
-     *
-     * <p>បើកកៅអីវិញដោយប្តូរ {@code FULL} ត្រឡប់ទៅ {@code OPEN} — តែ<b>តែពេល</b>
-     * ថ្ងៃចេញដំណើរនៅអនាគត។ កាលវិភាគដែល {@code DEPARTED} ឬ {@code COMPLETED}
-     * មិនត្រូវបើកទទួលការកក់វិញទេ។
-     */
+    // UC7.4: reopens FULL -> OPEN only when the departure date is in the future.
     @Override
     @Transactional
     public BookingResponse cancel(String code, CancelBookingRequest request) {
@@ -202,7 +188,7 @@ public class BookingServiceImpl implements BookingService {
         booking.setCancelledAt(LocalDateTime.now());
         bookingRepository.saveAndFlush(booking);
 
-        // សងវិញតាមអត្រា BR8 — ភាគដែលនៅសល់ជាការពិន័យលុបចោល
+        // Refund by the BR8 rate; the remainder is the cancellation penalty.
         if (refundAmount.signum() > 0) {
             BigDecimal refunded = paymentService.refundForBooking(booking, refundAmount,
                     "Booking cancelled: " + request.reason());
@@ -213,7 +199,7 @@ public class BookingServiceImpl implements BookingService {
 
         syncScheduleAvailability(booking.getSchedule());
 
-        // TODO ដំណាក់កាល ៥៖ notificationService.sendBookingCancelled(booking, refundAmount)
+        // TODO: notificationService.sendBookingCancelled(booking, refundAmount)
 
         return toResponse(booking, false);
     }
@@ -243,7 +229,7 @@ public class BookingServiceImpl implements BookingService {
         booking.setConfirmedAt(LocalDateTime.now());
         bookingRepository.save(booking);
 
-        // TODO ដំណាក់កាល ៥៖ notificationService.sendBookingConfirmed(booking)
+        // TODO: notificationService.sendBookingConfirmed(booking)
 
         return toResponse(booking, true);
     }
@@ -260,12 +246,7 @@ public class BookingServiceImpl implements BookingService {
                 booking -> bookingMapper.toResponse(booking, booking.getCustomer().getFullName()));
     }
 
-    /**
-     * UC7.7 — កែចំនួន និងបញ្ជីអ្នកដំណើរ។
-     *
-     * <p>ការរាប់កៅអីត្រូវ<b>ដកការកក់បច្ចុប្បន្នចេញ</b> មុនប្រៀបធៀប បើមិនដូច្នេះទេ
-     * ការកែពី ៣ នាក់ទៅ ៣ នាក់ដដែលក៏នឹងបរាជ័យដែរ ព្រោះកៅអីរបស់ខ្លួនឯងត្រូវរាប់ពីរដង។
-     */
+    // UC7.7: seat count excludes this booking itself, otherwise a 3 -> 3 edit would double-count its own seats.
     @Override
     @Transactional
     public BookingDetailResponse updatePassengers(String code, UpdatePassengersRequest request) {
@@ -287,7 +268,7 @@ public class BookingServiceImpl implements BookingService {
                 - booking.getNumberOfPeople();
         requireEnoughSeats(request.numberOfPeople(), schedule.getCapacity() - occupiedByOthers);
 
-        // គណនាតម្លៃឡើងវិញ — unitPrice នៅដដែល (snapshot ពេលកក់)
+        // Recalculate totals; unitPrice stays as the booking-time snapshot.
         BigDecimal subTotal = booking.getUnitPrice()
                 .multiply(BigDecimal.valueOf(request.numberOfPeople()));
         BigDecimal discount = calculateDiscount(request.numberOfPeople(), subTotal);
@@ -297,7 +278,7 @@ public class BookingServiceImpl implements BookingService {
         booking.setDiscountAmount(discount);
         booking.setTotalPrice(subTotal.subtract(discount));
 
-        // កាត់បន្ថយអ្នកដំណើរអាចធ្វើឲ្យបង់លើស — ត្រូវសងផ្នែកលើសវិញ
+        // Fewer passengers may leave an overpayment, which must be refunded.
         BigDecimal overpaid = booking.getPaidAmount().subtract(booking.getTotalPrice());
         if (overpaid.signum() > 0) {
             paymentService.refundForBooking(booking, overpaid, "Reduced number of passengers");
@@ -311,18 +292,13 @@ public class BookingServiceImpl implements BookingService {
 
         Booking saved = bookingRepository.saveAndFlush(booking);
 
-        // ចំនួនកៅអីប្តូរ — កាលវិភាគអាចទំនេរវិញ ឬពេញឡើង
+        // Seat count changed: the schedule may reopen or become full.
         syncScheduleAvailability(schedule);
 
         return toDetailResponse(saved, false);
     }
 
-    /**
-     * លុបចោលការកក់ {@code PENDING} ដែលមិនបានទូទាត់ក្នុង {@value #PENDING_EXPIRY_HOURS} ម៉ោង។
-     *
-     * <p>ការកក់ដែលបង់ប្រាក់ខ្លះរួច <b>មិនលុបទេ</b> — ទុកឲ្យ ADMIN សម្រេច ព្រោះការលុបវា
-     * ដោយស្វ័យប្រវត្តិនឹងបង្កើតកាតព្វកិច្ចសងប្រាក់ដោយគ្មានមនុស្សដឹង។
-     */
+    // Cancels PENDING bookings unpaid after the expiry window; partially paid ones are left to ADMIN.
     @Override
     @Transactional
     @Scheduled(cron = "${app.jobs.auto-cancel-pending.cron:0 */30 * * * *}")
@@ -347,15 +323,15 @@ public class BookingServiceImpl implements BookingService {
             syncScheduleAvailability(booking.getSchedule());
             cancelled++;
 
-            // TODO ដំណាក់កាល ៥៖ notificationService.sendBookingAutoCancelled(booking)
+            // TODO: notificationService.sendBookingAutoCancelled(booking)
         }
 
         log.info("autoCancelExpiredPending: examined {} · cancelled {}", expired.size(), cancelled);
     }
 
-    // ---------- វិន័យអាជីវកម្ម ----------
+    // ---------- Business rules ----------
 
-    /** BR10 — បញ្ចុះតម្លៃតាមទំហំក្រុម។ */
+    // BR10: group-size discount.
     private BigDecimal calculateDiscount(int numberOfPeople, BigDecimal subTotal) {
 
         BigDecimal rate = BigDecimal.ZERO;
@@ -371,7 +347,7 @@ public class BookingServiceImpl implements BookingService {
         return subTotal.multiply(rate).setScale(2, RoundingMode.HALF_UP);
     }
 
-    /** អត្រាសងប្រាក់វិញតាមចំនួនថ្ងៃដែលនៅសល់មុនចេញដំណើរ។ */
+    // Refund rate based on days remaining before departure.
     private BigDecimal calculateRefundRate(long daysLeft) {
         if (daysLeft >= 30) {
             return BigDecimal.ONE;
@@ -388,7 +364,7 @@ public class BookingServiceImpl implements BookingService {
         return BigDecimal.ZERO;
     }
 
-    /** BR7 — បញ្ជីអ្នកដំណើរត្រូវមានចំនួនស្មើ numberOfPeople ហើយមានអ្នកមេតែម្នាក់។ */
+    // BR7: passenger list must match numberOfPeople and have exactly one lead.
     private void requirePassengerListMatches(Integer numberOfPeople, List<PassengerRequest> passengers) {
 
         if (passengers.size() != numberOfPeople) {
@@ -405,7 +381,7 @@ public class BookingServiceImpl implements BookingService {
         }
     }
 
-    /** BR6 — ចំនួនអ្នកដំណើរត្រូវនៅចន្លោះ minGroupSize និង maxGroupSize។ */
+    // BR6: party size must be between minGroupSize and maxGroupSize.
     private void requireGroupSizeWithinTourLimits(int numberOfPeople, Tour tour) {
 
         if (tour.getMinGroupSize() != null && numberOfPeople < tour.getMinGroupSize()) {
@@ -419,7 +395,7 @@ public class BookingServiceImpl implements BookingService {
         }
     }
 
-    /** BR3 — កៅអីនៅសល់ត្រូវគ្រប់គ្រាន់។ */
+    // BR3: enough seats must remain.
     private void requireEnoughSeats(int requested, int availableSeats) {
 
         if (requested <= availableSeats) {
@@ -431,7 +407,7 @@ public class BookingServiceImpl implements BookingService {
                 : "Only " + availableSeats + " seat(s) left");
     }
 
-    /** BR4 — គណនីត្រូវស្ថិតក្នុងស្ថានភាព ACTIVE។ */
+    // BR4: account must be ACTIVE.
     private void requireActiveCustomer(Customer customer) {
         if (customer.getStatus() != CustomerStatus.ACTIVE) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
@@ -451,7 +427,7 @@ public class BookingServiceImpl implements BookingService {
         }
     }
 
-    // ---------- ជំនួយខាងក្នុង ----------
+    // ---------- Internal helpers ----------
 
     private Customer loadMe() {
         String keycloakId = AuthUtils.currentKeycloakId();
@@ -467,14 +443,7 @@ public class BookingServiceImpl implements BookingService {
                         "Booking not found with code = " + code));
     }
 
-    /**
-     * ទាញការកក់ ហើយពិនិត្យសិទ្ធិជាម្ចាស់។
-     *
-     * <p>បោះ <b>404</b> មិនមែន 403 ទេពេលមិនមែនម្ចាស់ — ដើម្បីកុំឲ្យអ្នកវាយប្រហារ
-     * ដឹងថាលេខកូដការកក់នេះមានពិត (ការលេចព័ត៌មានមួយប្រភេទ)។
-     *
-     * @param allowAdmin ពិត បើ ADMIN អាចមើលការកក់របស់អ្នកដទៃបាន (UC7.3)
-     */
+    // Loads a booking and checks ownership; non-owners get 404 (not 403) to avoid leaking code existence.
     private Booking loadByCodeForCurrentUser(String code, boolean allowAdmin) {
 
         Booking booking = loadByCode(code);
@@ -491,15 +460,7 @@ public class BookingServiceImpl implements BookingService {
         return booking;
     }
 
-    /**
-     * កែស្ថានភាពកាលវិភាគឲ្យត្រូវនឹងចំនួនកៅអីពិត — {@code OPEN} ⇄ {@code FULL}។
-     *
-     * <p>ប្តូរតែរវាង ២ ស្ថានភាពនេះប៉ុណ្ណោះ។ កាលវិភាគដែល {@code CLOSED}, {@code DEPARTED},
-     * {@code COMPLETED} ឬ {@code CANCELLED} មិនត្រូវប៉ះទេ — ការបើកវាទទួលការកក់វិញជាកំហុស។
-     *
-     * <p>ហៅវាបន្ទាប់ពី<b>រាល់</b>ការប្តូរចំនួនកៅអី (លុបចោល · កែអ្នកដំណើរ) ព្រោះការប្តូរ
-     * អាចទៅទាំងពីរទិស — កាត់បន្ថយធ្វើឲ្យទំនេរ ចំណែកបង្កើនអាចធ្វើឲ្យពេញ។
-     */
+    // Syncs OPEN <-> FULL with real seat usage; other statuses are untouched. Call after every seat-count change.
     private void syncScheduleAvailability(TourSchedule schedule) {
 
         ScheduleStatus current = schedule.getStatus();
@@ -513,7 +474,7 @@ public class BookingServiceImpl implements BookingService {
 
         ScheduleStatus target = isFull ? ScheduleStatus.FULL : ScheduleStatus.OPEN;
 
-        // កុំបើកទទួលការកក់វិញលើដំណើរដែលថ្ងៃចេញកន្លងផុតហើយ
+        // Do not reopen a trip whose departure date has passed.
         if (target == ScheduleStatus.OPEN && !schedule.getDepartureDate().isAfter(LocalDate.now())) {
             return;
         }
@@ -534,12 +495,7 @@ public class BookingServiceImpl implements BookingService {
                 includeCustomerName ? booking.getCustomer().getFullName() : null);
     }
 
-    /**
-     * លេខកូដបន្ទាប់ — {@code BK-20260912-0001}។
-     *
-     * <p>រំកិលទៅមុខរហូតដល់លេខទំនេរ ដូចលំនាំ {@code nextGuideCode} ដែរ —
-     * ព្រោះការរាប់តែម្នាក់ឯងមិនគ្រប់គ្រាន់ពេលមានការកក់ដែលលុបចេញ។
-     */
+    // Next code (BK-20260912-0001); advances to a free number because deleted bookings skew a plain count.
     private String nextBookingCode() {
 
         LocalDate today = LocalDate.now();

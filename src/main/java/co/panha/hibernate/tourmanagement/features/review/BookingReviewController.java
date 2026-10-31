@@ -13,9 +13,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * UC9.1 — ការវាយតម្លៃជាធនធានរងរបស់ការកក់ ព្រោះវាយតម្លៃបានតែលើការកក់ដែលបញ្ចប់។
- */
+// UC9.1 - reviews are a sub-resource of a booking; only completed bookings can be reviewed.
 @Tag(name = "Review")
 @RestController
 @RequiredArgsConstructor

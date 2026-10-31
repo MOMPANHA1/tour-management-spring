@@ -16,7 +16,7 @@ import java.util.Optional;
 @Repository
 public interface BookingRepository extends JpaRepository<Booking, Long> {
 
-    /** {@code EntityGraph} ការពារ N+1 ព្រោះ response ត្រូវការ tour និង schedule ជានិច្ច។ */
+    // EntityGraph avoids N+1 since the response always needs tour and schedule.
     @EntityGraph(attributePaths = {"customer", "schedule", "schedule.tour", "schedule.guide"})
     Optional<Booking> findByCodeAndIsDeletedFalse(String code);
 
@@ -33,12 +33,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     Page<Booking> findAllByCustomerIdAndStatusAndIsDeletedFalse(
             Long customerId, BookingStatus status, Pageable pageable);
 
-    /**
-     * កៅអីដែលកាន់កាប់រួច — {@code PENDING} រាប់ផង ព្រោះការកក់ដែលមិនទាន់បង់ប្រាក់
-     * នៅតែកាន់កៅអីទុក (រហូតដល់ job លុបចោលវាក្នុង ២៤ ម៉ោង)។
-     *
-     * <p>{@code COALESCE} ចាំបាច់ — {@code SUM} លើសំណុំទទេត្រឡប់ {@code null} មិនមែន 0 ទេ។
-     */
+    // Occupied seats; PENDING counts too (holds seats until auto-cancel); COALESCE since SUM of nothing is null.
     @Query("""
             SELECT COALESCE(SUM(b.numberOfPeople), 0) FROM Booking b
             WHERE b.schedule.id = :scheduleId
@@ -49,7 +44,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             """)
     int countOccupiedSeats(@Param("scheduleId") Long scheduleId);
 
-    /** BR5 — អតិថិជនម្នាក់កក់កាលវិភាគដដែលពីរដងមិនបាន។ */
+    // BR5: a customer cannot book the same schedule twice.
     @Query("""
             SELECT COUNT(b) > 0 FROM Booking b
             WHERE b.customer.id = :customerId
@@ -61,7 +56,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     boolean existsActiveBooking(@Param("customerId") Long customerId,
                                 @Param("scheduleId") Long scheduleId);
 
-    /** ប្រើដោយ F4 Tour — ហាមលុប Tour ដែលនៅមានការកក់សកម្ម។ */
+    // Used by F4 Tour: a tour with active bookings cannot be deleted.
     @Query("""
             SELECT COUNT(b) FROM Booking b
             WHERE b.schedule.tour.id = :tourId
@@ -71,7 +66,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             """)
     long countActiveBookingsByTour(@Param("tourId") Long tourId);
 
-    /** ប្រើដោយ F6 Customer — ទាមទារហេតុផលពេលផ្អាកអតិថិជនដែលមានការកក់សកម្ម។ */
+    // Used by F6 Customer: suspending a customer with active bookings requires a reason.
     @Query("""
             SELECT COUNT(b) FROM Booking b
             WHERE b.customer.id = :customerId
@@ -81,7 +76,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             """)
     long countActiveByCustomer(@Param("customerId") Long customerId);
 
-    /** ប្រើដោយ F5 Schedule — លុបចោលការកក់ទាំងអស់ពេលកាលវិភាគត្រូវបានបោះបង់។ */
+    // Used by F5 Schedule: cancel all active bookings when a schedule is cancelled.
     @EntityGraph(attributePaths = {"customer"})
     @Query("""
             SELECT b FROM Booking b
@@ -92,15 +87,10 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             """)
     List<Booking> findActiveBySchedule(@Param("scheduleId") Long scheduleId);
 
-    /** ប្រើដោយ F5 Schedule — ការកក់ CONFIRMED → COMPLETED ពេលដំណើរបញ្ចប់។ */
+    // Used by F5 Schedule: CONFIRMED bookings become COMPLETED when the trip ends.
     List<Booking> findByScheduleIdAndStatusAndIsDeletedFalse(Long scheduleId, BookingStatus status);
 
-    /**
-     * ចំនួនការកក់ក្នុងថ្ងៃមួយ — សម្រាប់បង្កើតលេខកូដតាមលំដាប់។
-     *
-     * <p>ប្រៀបធៀបចន្លោះ {@code >= ថ្ងៃនេះ 00:00} និង {@code < ថ្ងៃស្អែក 00:00} ជំនួសឲ្យ
-     * {@code DATE(b.bookedAt)} ព្រោះ function នោះមិនស្តង់ដារក្នុង JPQL ហើយបំបែក index។
-     */
+    // Daily booking count for sequential codes; a range is used because DATE() is non-standard JPQL and defeats the index.
     @Query("""
             SELECT COUNT(b) FROM Booking b
             WHERE b.bookedAt >= :dayStart AND b.bookedAt < :nextDayStart
@@ -108,7 +98,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     long countBookingsOn(@Param("dayStart") LocalDateTime dayStart,
                          @Param("nextDayStart") LocalDateTime nextDayStart);
 
-    /** Job លុបចោលស្វ័យប្រវត្តិ — {@code PENDING} ដែលហួស ២៤ ម៉ោង។ */
+    // Auto-cancel job: PENDING bookings older than 24 hours.
     @EntityGraph(attributePaths = {"schedule"})
     @Query("""
             SELECT b FROM Booking b
@@ -118,7 +108,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             """)
     List<Booking> findExpiredPending(@Param("cutoff") LocalDateTime cutoff);
 
-    /** UC7.6 — ADMIN មើលការកក់ទាំងអស់ ត្រងតាមស្ថានភាព និងចន្លោះថ្ងៃចេញដំណើរ។ */
+    // UC7.6: ADMIN search filtered by status and departure date range.
     @EntityGraph(attributePaths = {"customer", "schedule", "schedule.tour"})
     @Query("""
             SELECT b FROM Booking b

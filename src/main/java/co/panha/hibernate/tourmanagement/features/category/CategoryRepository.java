@@ -14,15 +14,7 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     boolean existsByNameIgnoreCaseAndIsDeletedFalse(String name);
 
-    /**
-     * ពិនិត្យ slug ក្នុងចំណោម<b>ជួរដែលនៅរស់</b>តែប៉ុណ្ណោះ។
-     *
-     * <p>ច្រោះ {@code isDeleted} បានព្រោះវិន័យ unique ក្នុង database ជា partial index
-     * {@code ux_categories_slug_active ... WHERE is_deleted = false} — ជួរដែលលុប (soft)
-     * លែងកាន់កាប់ slug ទេ។ បើថ្ងៃណាមួយ index នោះត្រូវប្តូរមកជា unique constraint ធម្មតាវិញ
-     * method នេះត្រូវដកការច្រោះចេញ បើមិនដូច្នេះការបង្កើតថ្មីនឹងបរាជ័យដោយ
-     * {@code DataIntegrityViolationException} ជំនួសឲ្យទទួល slug ថ្មី។
-     */
+    // Active rows only: the DB unique rule is a partial index; drop this filter if it becomes a plain unique constraint.
     boolean existsBySlugAndIsDeletedFalse(String slug);
 
     Page<Category> findAllByIsDeletedFalse(Pageable pageable);

@@ -12,7 +12,7 @@ import org.mapstruct.NullValuePropertyMappingStrategy;
 @Mapper(componentModel = "spring")
 public interface GuideMapper {
 
-    // code និង status កំណត់ដោយ Service; id និង audit បំពេញដោយ JPA
+    // code and status are set by the service; id and audit fields are filled by JPA.
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "code", ignore = true)
     @Mapping(target = "status", ignore = true)
@@ -21,7 +21,7 @@ public interface GuideMapper {
     @Mapping(target = "updatedAt", ignore = true)
     Guide toEntity(CreateGuideRequest request);
 
-    /** PATCH — field ដែល client មិនផ្ញើ (null) មិនជាន់លើតម្លៃចាស់។ */
+    // PATCH: null fields from the client do not overwrite existing values.
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "code", ignore = true)
@@ -31,7 +31,7 @@ public interface GuideMapper {
     @Mapping(target = "updatedAt", ignore = true)
     void updateEntity(UpdateGuideRequest request, @MappingTarget Guide guide);
 
-    /** {@code assignedScheduleCount} មកពី Service (ការរាប់ក្នុង database)។ */
+    // assignedScheduleCount comes from the service (database count).
     @Mapping(target = "assignedScheduleCount", source = "assignedScheduleCount")
     GuideResponse toResponse(Guide guide, long assignedScheduleCount);
 }

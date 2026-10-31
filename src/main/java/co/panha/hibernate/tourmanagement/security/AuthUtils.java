@@ -8,37 +8,23 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.web.server.ResponseStatusException;
 
-/**
- * ជំនួយអានអត្តសញ្ញាណអ្នកប្រើពី JWT ដែល Keycloak ចេញឲ្យ។
- *
- * <p>ប្រើក្នុង Service មិនមែនក្នុង Controller ទេ — ដើម្បីកុំឲ្យវិន័យអាជីវកម្ម (ម្ចាស់ធនធានជានរណា)
- * ខ្ចាត់ខ្ចាយចេញពី Service layer។
- *
- * <p><b>ចំណាំអំពី authority</b>៖ {@code SecurityConfig.jwtAuthenticationConverter()} បម្លែង
- * {@code realm_access.roles} ទៅជា authority <b>ដោយគ្មាន prefix</b> {@code ROLE_}។
- * ដូច្នេះត្រូវប្រើ {@code hasAuthority("ADMIN")} — មិនមែន {@code hasRole("ADMIN")} ទេ។
- */
+// Reads the user identity from the Keycloak JWT; authorities have no ROLE_ prefix, use hasAuthority.
 public final class AuthUtils {
 
     private AuthUtils() {
     }
 
-    /**
-     * Keycloak User ID ({@code sub} claim) — តម្លៃដែល<b>មិនប្តូរជារៀងរហូត</b>។
-     *
-     * <p>ប្រើវាជាស្ពានទៅតារាង {@code customers} ({@code Customer.keycloakId}) មិនមែន
-     * {@code username} ទេ ព្រោះ username អាចប្តូរបានក្នុង Keycloak។
-     */
+    // Keycloak user ID (sub claim); immutable, so it links to Customer.keycloakId instead of username.
     public static String currentKeycloakId() {
         return requireJwtToken().getToken().getSubject();
     }
 
-    /** {@code preferred_username} claim — សម្រាប់បង្ហាញ និង log ប៉ុណ្ណោះ មិនមែនជាកូនសោទេ។ */
+    // preferred_username claim; for display and logs only, not a key.
     public static String currentUsername() {
         return requireJwtToken().getToken().getClaimAsString("preferred_username");
     }
 
-    /** {@code email} claim — អាច {@code null} បើ realm មិនតម្រូវឲ្យបំពេញ email។ */
+    // email claim; may be null if the realm does not require it.
     public static String currentEmail() {
         return requireJwtToken().getToken().getClaimAsString("email");
     }
@@ -59,12 +45,7 @@ public final class AuthUtils {
                 .anyMatch(authority::equals);
     }
 
-    /**
-     * អនុញ្ញាតតែម្ចាស់ធនធាន ឬ ADMIN — បោះ <b>403</b> បើមិនមែន។
-     *
-     * <p>បោះ 403 មិនមែន 404 ទេ ព្រោះអ្នកប្រើបាន authenticate រួចហើយ ហើយធនធាន<b>មាន</b>ពិត —
-     * គ្រាន់តែគាត់គ្មានសិទ្ធិប៉ុណ្ណោះ។
-     */
+    // Allows only the owner or ADMIN; throws 403 (not 404) since the resource exists but access is denied.
     public static void requireOwnerOrAdmin(String ownerKeycloakId) {
         if (isAdmin()) {
             return;
@@ -76,12 +57,7 @@ public final class AuthUtils {
         }
     }
 
-    /**
-     * ទាញ token ឬបោះ <b>401</b>។
-     *
-     * <p>ពិនិត្យ {@code null} និង {@code AnonymousAuthenticationToken} មុន cast — បើមិនដូច្នេះទេ
-     * endpoint ដែល {@code permitAll} នឹងបោះ {@code ClassCastException} ក្លាយជា <b>500</b>។
-     */
+    // Returns the token or throws 401; checks null/anonymous first to avoid a ClassCastException (500).
     private static JwtAuthenticationToken requireJwtToken() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
 

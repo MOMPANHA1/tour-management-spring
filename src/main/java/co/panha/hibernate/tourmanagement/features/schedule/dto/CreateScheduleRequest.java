@@ -13,18 +13,13 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
-/**
- * ទិន្នន័យបង្កើតកាលវិភាគ — UC5.1។
- *
- * <p>រយៈពេល ({@code returnDate − departureDate + 1}) ត្រូវស្មើ {@code tour.durationDays}
- * — ពិនិត្យក្នុង Service ព្រោះវាត្រូវអាន Tour ពី database។
- */
+// UC5.1: duration (returnDate - departureDate + 1) must equal tour.durationDays; checked in the service.
 public record CreateScheduleRequest(
 
         @NotNull(message = "Tour is required")
         Long tourId,
 
-        /** ជម្រើស — ចាត់តាំងមគ្គុទ្ទេសក៍ក្រោយបាន។ */
+        // Optional: a guide can be assigned later.
         Long guideId,
 
         @NotNull(message = "Departure date is required")

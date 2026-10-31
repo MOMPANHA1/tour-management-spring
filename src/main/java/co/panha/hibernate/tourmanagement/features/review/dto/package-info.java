@@ -1,4 +1,2 @@
-/**
- * DTO សម្រាប់ F9 — ការវាយតម្លៃ (Review)។
- */
+// DTOs for F9 - reviews.
 package co.panha.hibernate.tourmanagement.features.review.dto;

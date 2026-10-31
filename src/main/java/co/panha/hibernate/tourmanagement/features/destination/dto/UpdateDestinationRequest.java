@@ -6,9 +6,7 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
-/**
- * ទិន្នន័យកែទីតាំង — UC2.4 (PATCH)។ គ្រប់ field អាច {@code null}។
- */
+// UC2.4 - PATCH request; all fields may be null.
 public record UpdateDestinationRequest(
 
         @Size(max = 120, message = "Destination name cannot exceed 120 characters")

@@ -19,11 +19,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * F2 — ទីតាំងគោលដៅ។
- *
- * <p>សិទ្ធិ (ADMIN សម្រាប់ POST/PATCH/DELETE) នឹងអនុវត្តនៅដំណាក់កាល ៥ ពេលដាក់ Spring Security។
- */
+// F2 - Destinations; ADMIN-only writes are enforced in phase 5 (Spring Security).
 @Tag(name = "Destination")
 @RestController
 @RequiredArgsConstructor

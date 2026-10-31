@@ -4,11 +4,7 @@ import co.panha.hibernate.tourmanagement.features.customer.CustomerStatus;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
-/**
- * ការប្តូរស្ថានភាពគណនីដោយ ADMIN — UC6.6។
- *
- * <p>{@code reason} ជាជម្រើសទូទៅ តែ<b>ចាំបាច់</b>នៅពេលផ្អាកអតិថិជនដែលមានការកក់សកម្ម។
- */
+// UC6.6 status change by ADMIN; reason is required when suspending a customer with active bookings.
 public record UpdateCustomerStatusRequest(
 
         @NotNull(message = "Status is required")

@@ -3,11 +3,7 @@ package co.panha.hibernate.tourmanagement.features.schedule.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-/**
- * បោះបង់កាលវិភាគ — UC5.5។
- *
- * <p>មូលហេតុចាំបាច់ ព្រោះវាបញ្ជូនទៅអតិថិជនគ្រប់រូបដែលកក់កាលវិភាគនេះ។
- */
+// UC5.5: reason is required because it is sent to every customer who booked this schedule.
 public record CancelScheduleRequest(
 
         @NotBlank(message = "Cancellation reason is required")

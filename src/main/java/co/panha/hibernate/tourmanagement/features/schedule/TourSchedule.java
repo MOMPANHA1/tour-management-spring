@@ -20,12 +20,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
-/**
- * កាលវិភាគចេញដំណើរជាក់លាក់របស់ Tour មួយ។
- *
- * <p>នេះជា entity ដែល <b>ការកក់ភ្ជាប់ជាមួយ</b> — មិនមែន Tour ទេ។ Tour ជាកញ្ចប់លក់
- * ចំណែក TourSchedule ជាថ្ងៃចេញដំណើរពិតដែលមានចំនួនកៅអីកំណត់។
- */
+// A concrete departure of a tour; bookings attach to this, not to the Tour package.
 @Getter
 @Setter
 @Entity
@@ -40,7 +35,7 @@ import java.time.LocalTime;
 )
 public class TourSchedule extends BaseEntity {
 
-    /** លេខកូដសាធារណៈ — {@code SC-20260912-07}។ */
+    // Public code, e.g. SC-20260912-07.
     @Column(unique = true, nullable = false, length = 25)
     private String code;
 
@@ -48,7 +43,7 @@ public class TourSchedule extends BaseEntity {
     @JoinColumn(name = "tour_id", nullable = false)
     private Tour tour;
 
-    /** អាច null ដំបូង — Admin ចាត់តាំងមគ្គុទ្ទេសក៍ក្រោយបាន។ */
+    // Nullable: admin can assign a guide later.
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "guide_id")
     private Guide guide;
@@ -64,15 +59,11 @@ public class TourSchedule extends BaseEntity {
     @Column(length = 255)
     private String meetingPoint;
 
-    /**
-     * ចំនួនកៅអីសម្រាប់ថ្ងៃចេញនេះ។
-     *
-     * <p>អាចតិចជាង {@code tour.maxGroupSize} — ឧ. Tour ទទួលបាន ២០ នាក់ តែរថយន្តថ្ងៃនោះមាន ១៥ កៅអី។
-     */
+    // Seats for this departure; may be below tour.maxGroupSize (e.g. smaller vehicle).
     @Column(nullable = false)
     private Integer capacity;
 
-    /** {@code null} = ប្រើ {@code tour.price}។ */
+    // null means use tour.price.
     @Column(precision = 12, scale = 2)
     private BigDecimal priceOverride;
 
@@ -83,10 +74,9 @@ public class TourSchedule extends BaseEntity {
     @Column(length = 500)
     private String cancelReason;
 
-    // ចំណាំ៖ គ្មាន @OneToMany ទៅ Booking ទេ — ការរាប់កៅអីធ្វើដោយ
-    //   BookingRepository.countOccupiedSeats() (F7) ព្រោះវាត្រូវច្រោះតាមស្ថានភាពការកក់។
+    // Note: no @OneToMany to Booking; seats are counted via BookingRepository.countOccupiedSeats() (F7).
 
-    /** តម្លៃពិតដែលអតិថិជនបង់សម្រាប់ថ្ងៃចេញនេះ។ */
+    // Actual price the customer pays for this departure.
     public BigDecimal effectivePrice() {
         return (priceOverride != null) ? priceOverride : tour.getPrice();
     }

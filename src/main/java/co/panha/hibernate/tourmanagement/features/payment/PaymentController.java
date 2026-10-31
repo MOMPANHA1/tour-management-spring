@@ -17,9 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 
-/**
- * មុខងារទូទាត់សម្រាប់ ADMIN — ការពិនិត្យ និងរបាយការណ៍។
- */
+// ADMIN payment review and reports.
 @Tag(name = "Payment")
 @RestController
 @RequiredArgsConstructor
@@ -28,10 +26,7 @@ public class PaymentController {
 
     private final PaymentService paymentService;
 
-    /**
-     * ត្រូវប្រកាស<b>មុន</b> {@code /{ref}/...} ដើម្បីកុំឲ្យ {@code report}
-     * ក្លាយជាលេខយោងការទូទាត់។
-     */
+    // Must be declared before /{ref}/... so "report" is not treated as a payment reference.
     @GetMapping("/report")
     public RevenueReportResponse getRevenueReport(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fromDate,

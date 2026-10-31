@@ -3,7 +3,7 @@ package co.panha.hibernate.tourmanagement.features.review.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-/** ការឆ្លើយតបដោយ ADMIN — UC9.5។ */
+// UC9.5 - ADMIN reply.
 public record ReplyReviewRequest(
 
         @NotBlank(message = "Reply is required")

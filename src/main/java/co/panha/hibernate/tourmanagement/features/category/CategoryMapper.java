@@ -9,13 +9,11 @@ import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.NullValuePropertyMappingStrategy;
 
-/**
- * បម្លែង {@link Category} ↔ DTO។ MapStruct បង្កើត implementation ពេល compile។
- */
+// Maps Category <-> DTOs; MapStruct generates the implementation at compile time.
 @Mapper(componentModel = "spring")
 public interface CategoryMapper {
 
-    // slug កំណត់ដោយ Service; id និង audit បំពេញដោយ JPA — mapper មិនប៉ះ
+    // slug is set by the service; id and audit fields are filled by JPA.
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "slug", ignore = true)
     @Mapping(target = "isDeleted", ignore = true)
@@ -23,12 +21,7 @@ public interface CategoryMapper {
     @Mapping(target = "updatedAt", ignore = true)
     Category toEntity(CreateCategoryRequest request);
 
-    /**
-     * កែ entity ដែលមានស្រាប់តាមលក្ខណៈ PATCH។
-     *
-     * <p>{@code NullValuePropertyMappingStrategy.IGNORE} ធ្វើឲ្យ field ដែល client មិនផ្ញើមក
-     * (null) <b>មិនត្រូវជាន់</b>លើតម្លៃចាស់។ បើគ្មានវា PATCH នឹងលុបទិន្នន័យដោយចៃដន្យ។
-     */
+    // PATCH update: IGNORE keeps old values for fields the client omits (null).
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "slug", ignore = true)
@@ -37,10 +30,7 @@ public interface CategoryMapper {
     @Mapping(target = "updatedAt", ignore = true)
     void updateEntity(UpdateCategoryRequest request, @MappingTarget Category category);
 
-    /**
-     * {@code tourCount} មកពី Service (ការរាប់ក្នុង database) មិនមែនពី entity ទេ —
-     * mapper មិនប៉ះ database។
-     */
+    // tourCount comes from the service (database count), not from the entity.
     @Mapping(target = "tourCount", source = "tourCount")
     CategoryResponse toResponse(Category category, long tourCount);
 }

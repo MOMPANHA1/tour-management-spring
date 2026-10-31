@@ -17,13 +17,13 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
     @EntityGraph(attributePaths = {"booking", "tour", "customer"})
     Optional<Review> findByIdAndIsDeletedFalse(Long id);
 
-    /** BR3 — ការកក់មួយវាយតម្លៃបានតែម្តង។ រាប់ទាំងអ្វីដែលលុបរួច (soft) ដើម្បីកុំឲ្យវាយឡើងវិញ។ */
+    // BR3 - one review per booking; includes soft-deleted rows to prevent re-reviewing.
     boolean existsByBookingId(Long bookingId);
 
     @EntityGraph(attributePaths = {"booking", "tour", "customer"})
     Optional<Review> findByBookingIdAndIsDeletedFalse(Long bookingId);
 
-    /** UC9.2 — ការវាយតម្លៃសាធារណៈរបស់ Tour មួយ។ */
+    // UC9.2 - public reviews of one tour.
     @EntityGraph(attributePaths = {"booking", "customer"})
     @Query("""
             SELECT r FROM Review r
@@ -33,12 +33,7 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
             """)
     Page<Review> findVisibleByTour(@Param("tourId") Long tourId, Pageable pageable);
 
-    /**
-     * ពិន្ទុមធ្យម — រាប់តែការវាយតម្លៃដែលមើលឃើញ។
-     *
-     * <p>{@code COALESCE} ចាំបាច់៖ {@code AVG} លើសំណុំទទេត្រឡប់ {@code null}
-     * ដែលនឹងបង្ក {@code NullPointerException} ពេល unbox ទៅ {@code double}។
-     */
+    // Average rating over visible reviews; COALESCE avoids null on empty set (NPE when unboxing).
     @Query("""
             SELECT COALESCE(AVG(r.rating), 0) FROM Review r
             WHERE r.tour.id = :tourId AND r.isVisible = true AND r.isDeleted = false
@@ -65,7 +60,7 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
             """)
     long countVisibleByTour(@Param("tourId") Long tourId);
 
-    /** UC9.7 — ចំនួនតាមផ្កាយនីមួយៗ។ ត្រឡប់ {@code [rating, count]} តែសម្រាប់ផ្កាយដែលមាន។ */
+    // UC9.7 - count per star as [rating, count], only for stars that exist.
     @Query("""
             SELECT r.rating, COUNT(r) FROM Review r
             WHERE r.tour.id = :tourId AND r.isVisible = true AND r.isDeleted = false

@@ -19,11 +19,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * F1 — ប្រភេទ Tour។
- *
- * <p>សិទ្ធិ (ADMIN សម្រាប់ POST/PATCH/DELETE) នឹងអនុវត្តនៅដំណាក់កាល ៥ ពេលដាក់ Spring Security។
- */
+// F1 - Tour categories; ADMIN-only writes are enforced in phase 5 (Spring Security).
 @Tag(name = "Category")
 @RestController
 @RequiredArgsConstructor

@@ -17,9 +17,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * ការគ្រប់គ្រងការវាយតម្លៃម្តងមួយៗ — UC9.3 ដល់ UC9.6។
- */
+// Single-review operations - UC9.3 to UC9.6.
 @Tag(name = "Review")
 @RestController
 @RequiredArgsConstructor

@@ -19,16 +19,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * F6 — អតិថិជន។
- *
- * <p>សិទ្ធិកំណត់ក្នុង {@code security/SecurityConfig}៖ {@code /register} សាធារណៈ ·
- * {@code /me} សម្រាប់ {@code CUSTOMER} · ឯផ្លូវដែលនៅសល់សម្រាប់ {@code ADMIN}។
- *
- * <p>{@code /me} មិនទទួល id ពី client ទេ — Service ទាញអត្តសញ្ញាណពី JWT ដោយផ្ទាល់
- * ({@code AuthUtils.currentKeycloakId()})។ បើទទួលពី client នោះអ្នកណាក៏អាចមើលប្រវត្តិរូប
- * អ្នកដទៃបានដែរ។
- */
+// F6 customers; /register is public, /me is CUSTOMER, the rest ADMIN; /me reads identity from the JWT, never from the client.
 @Tag(name = "Customer")
 @RestController
 @RequiredArgsConstructor

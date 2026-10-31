@@ -2,11 +2,7 @@ package co.panha.hibernate.tourmanagement.features.destination.dto;
 
 import java.math.BigDecimal;
 
-/**
- * ទិន្នន័យទីតាំងដែលត្រឡប់ទៅ client។
- *
- * @param tourCount ចំនួន Tour សកម្មដែលទៅដល់ទីតាំងនេះ។
- */
+// Destination data returned to the client; tourCount is the number of active tours.
 public record DestinationResponse(
         Long id,
         String name,

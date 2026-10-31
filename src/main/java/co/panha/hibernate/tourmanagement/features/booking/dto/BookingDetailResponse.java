@@ -7,15 +7,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * ទិន្នន័យការកក់ពេញលេញ។
- *
- * <p>ផែនការសរសេរ {@code BookingDetailResponse EXTENDS BookingResponse} — តែ Java record
- * ពង្រីកមិនបានទេ ដូច្នេះរាយ field ឡើងវិញ ដូចលំនាំ
- * {@code TourCardResponse} / {@code TourDetailResponse} ដែរ។
- *
- * <p><b>មិនទាន់មាន {@code payments}</b> — {@code Payment} មកនៅ F8។
- */
+// Full booking detail; fields repeated from BookingResponse since records cannot extend. TODO: add payments in F8.
 public record BookingDetailResponse(
         String code,
         BookingStatus status,

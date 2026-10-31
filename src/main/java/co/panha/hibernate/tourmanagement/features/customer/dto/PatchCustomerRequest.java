@@ -7,14 +7,7 @@ import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 
-/**
- * ទិន្នន័យកែប្រវត្តិរូបខ្លួនឯង — UC6.3 (PATCH)។
- *
- * <p>គ្រប់ field អាច {@code null} — មានន័យថា "កុំប៉ះ field នេះ"។
- *
- * <p><b>{@code username} និង {@code email} កែមិនបានទេ</b> — ព្រោះវាជាអត្តសញ្ញាណក្នុង Keycloak។
- * ការប្តូរវាត្រូវធ្វើនៅ Keycloak ដោយផ្ទាល់ បើមិនដូច្នេះទេ ទិន្នន័យ ២ កន្លែងនឹងខុសគ្នា។
- */
+// UC6.3 PATCH: null means leave unchanged; username and email are Keycloak identity and cannot be edited here.
 public record PatchCustomerRequest(
 
         @Size(max = 120, message = "Full name cannot exceed 120 characters")

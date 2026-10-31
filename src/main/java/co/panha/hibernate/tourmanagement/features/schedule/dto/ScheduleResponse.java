@@ -6,15 +6,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
-/**
- * ទិន្នន័យកាលវិភាគដែលត្រឡប់ទៅ client។
- *
- * @param bookedSeats    កៅអីដែលកក់រួច។ <b>បច្ចុប្បន្នតែងតែ 0</b> ព្រោះ entity {@code Booking}
- *                       មិនទាន់មាន (F7)។
- * @param availableSeats {@code capacity − bookedSeats} — គណនាពេលអាន មិនរក្សាទុកក្នុង database
- *                       ព្រោះវាប្រែរាល់ការកក់។
- * @param effectivePrice {@code priceOverride} បើមាន បើមិនដូច្នេះ {@code tour.price}។
- */
+// bookedSeats is currently always 0 (no Booking yet); availableSeats is computed on read; effectivePrice falls back to tour.price.
 public record ScheduleResponse(
         Long id,
         String code,

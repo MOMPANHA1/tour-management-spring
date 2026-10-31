@@ -26,9 +26,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
-/**
- * កញ្ចប់ដំណើរកម្សាន្ត — ឈ្មោះ · តម្លៃ · រយៈពេល · ទីតាំង · រូបភាព។
- */
+// Tour package: name, price, duration, destinations, images.
 @Getter
 @Setter
 @Entity
@@ -36,7 +34,7 @@ import java.util.Set;
 @Table(name = "tours")
 public class Tour extends BaseEntity {
 
-    /** លេខកូដសាធារណៈ — {@code TR-0001}។ */
+    // Public code, e.g. TR-0001.
     @Column(unique = true, nullable = false, length = 20)
     private String code;
 
@@ -49,7 +47,7 @@ public class Tour extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    /** កម្មវិធីថ្ងៃទី ១, ថ្ងៃទី ២... */
+    // Day-by-day program (day 1, day 2, ...).
     @Column(columnDefinition = "TEXT")
     private String itinerary;
 
@@ -59,7 +57,7 @@ public class Tour extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String excluded;
 
-    /** តម្លៃមូលដ្ឋាន — កាលវិភាគអាចជាន់លើដោយ {@code priceOverride} (F5)។ */
+    // Base price; a schedule can override it with priceOverride (F5).
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal price;
 
@@ -83,17 +81,17 @@ public class Tour extends BaseEntity {
     @Column(nullable = false)
     private Boolean isPublished = false;
 
-    /** គណនាទុកមុន — កែដោយ {@code recalculateRating} ក្រោយបង្កើត/កែ/លុប Review (F9)។ */
+    // Precomputed; updated by recalculateRating after review create/update/delete (F9).
     private Double averageRating = 0.0;
 
-    /** គណនាទុកមុន — ដូចគ្នានឹង {@code averageRating}។ */
+    // Precomputed, same as averageRating.
     private Integer reviewCount = 0;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "category_id")
     private Category category;
 
-    /** ម្ចាស់ទំនាក់ទំនង M:N — ការកែពីខាង {@code Destination.tours} នឹងមិនរក្សាទុកទេ។ */
+    // Owning side of the M:N relation; edits from Destination.tours are not persisted.
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "tour_destinations",
@@ -106,21 +104,15 @@ public class Tour extends BaseEntity {
     @OneToMany(mappedBy = "tour", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<TourImage> images = new ArrayList<>();
 
-    // ចំណាំ៖ គ្មាន @OneToMany ទៅ TourSchedule ទេ — ការរាប់ និងការទាញធ្វើដោយ ScheduleRepository
-    //   ព្រោះកាលវិភាគមួយ Tour អាចមានរាប់រយ ហើយភាគច្រើនជាអតីតកាលដែលមិនត្រូវការ។
+    // Note: no @OneToMany to TourSchedule; ScheduleRepository handles it since a tour can have hundreds, mostly past.
 
-    /**
-     * ភ្ជាប់រូបភាពទាំងសងខាង។
-     *
-     * <p>ការ {@code images.add(image)} តែម្នាក់ឯងមិនគ្រប់គ្រាន់ទេ — {@code TourImage.tour}
-     * ជាម្ចាស់ FK ដូច្នេះបើមិនកំណត់វា {@code tour_id} នឹងជា null ហើយការរក្សាទុកនឹងបរាជ័យ។
-     */
+    // Sets both sides: TourImage.tour owns the FK, so it must be set or tour_id is null on save.
     public void addImage(TourImage image) {
         image.setTour(this);
         images.add(image);
     }
 
-    /** ដករូបភាពទាំងអស់ចេញ — {@code orphanRemoval} នឹងលុបជួរក្នុង database។ */
+    // Remove all images; orphanRemoval deletes the rows.
     public void clearImages() {
         images.forEach(image -> image.setTour(null));
         images.clear();

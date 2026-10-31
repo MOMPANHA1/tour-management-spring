@@ -13,12 +13,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/**
- * រូបភាពរបស់ Tour។
- *
- * <p><b>មិនពង្រីក {@code BaseEntity}</b> ដោយចេតនា — រូបភាពជាផ្នែករងរបស់ Tour មិនមែនធនធានឯករាជ្យ
- * ដែលមាន URL ផ្ទាល់ខ្លួនទេ ដូច្នេះមិនត្រូវការ soft delete។ លុប Tour → រូបលុបតាម។
- */
+// Does not extend BaseEntity on purpose: images are part of a Tour, so no soft delete; deleted with the tour.
 @Getter
 @Setter
 @Entity

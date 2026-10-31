@@ -9,11 +9,7 @@ import jakarta.validation.constraints.Size;
 
 import java.util.Set;
 
-/**
- * ទិន្នន័យកែមគ្គុទ្ទេសក៍ — UC3.4 (PATCH)។ គ្រប់ field អាច {@code null}។
- *
- * <p>{@code status} មិនកែនៅទីនេះទេ — ប្រើ {@code PATCH /{id}/status} ដែលមានវិន័យអាជីវកម្មដាច់ដោយឡែក។
- */
+// UC3.4 - PATCH request; status is changed via PATCH /{id}/status, which has its own business rules.
 public record UpdateGuideRequest(
 
         @Size(max = 120, message = "Full name cannot exceed 120 characters")

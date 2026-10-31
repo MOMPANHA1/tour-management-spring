@@ -6,12 +6,7 @@ import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
-/**
- * កែការវាយតម្លៃ — UC9.3 (PATCH)។
- *
- * <p>គ្រប់ field អាច {@code null} — មានន័យថា "កុំប៉ះ field នេះ"។
- * {@code imageUrls} ជាការ<b>ជំនួសពេញ</b> មិនមែនការបន្ថែមទេ។
- */
+// UC9.3 PATCH - null field means unchanged; imageUrls is a full replacement.
 public record UpdateReviewRequest(
 
         @Min(value = 1, message = "Rating must be between 1 and 5")

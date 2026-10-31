@@ -9,36 +9,31 @@ import co.panha.hibernate.tourmanagement.features.booking.dto.UpdatePassengersRe
 
 import java.time.LocalDate;
 
-/**
- * សេវាកម្មការកក់ — F7។
- *
- * <p>រាល់ method ដែលពាក់ព័ន្ធនឹងអតិថិជនទាញអត្តសញ្ញាណពី JWT ខ្លួនឯង
- * ({@code AuthUtils}) — មិនទទួល {@code customerId} ពី client ទេ។
- */
+// F7 booking service; customer identity comes from the JWT (AuthUtils), never from the client.
 public interface BookingService {
 
-    /** UC7.1 — អតិថិជនកក់ Tour។ */
+    // UC7.1 customer books a tour.
     BookingDetailResponse bookTour(CreateBookingRequest request);
 
-    /** UC7.2 — ការកក់របស់ខ្លួនឯង។ */
+    // UC7.2 the customer's own bookings.
     PageResponse<BookingResponse> findMyBookings(BookingStatus status, Integer page, Integer size);
 
-    /** UC7.3 — លម្អិតការកក់មួយ (ម្ចាស់ ឬ ADMIN)។ */
+    // UC7.3 booking detail (owner or ADMIN).
     BookingDetailResponse findByCode(String code);
 
-    /** UC7.4 — អតិថិជនលុបចោលការកក់។ */
+    // UC7.4 customer cancels a booking.
     BookingResponse cancel(String code, CancelBookingRequest request);
 
-    /** UC7.5 — ADMIN បញ្ជាក់ការកក់។ */
+    // UC7.5 ADMIN confirms a booking.
     BookingResponse confirm(String code);
 
-    /** UC7.6 — ADMIN មើលការកក់ទាំងអស់។ */
+    // UC7.6 ADMIN lists all bookings.
     PageResponse<BookingResponse> findAll(BookingStatus status, LocalDate fromDate, LocalDate toDate,
                                           Integer page, Integer size);
 
-    /** UC7.7 — អតិថិជនកែចំនួន និងបញ្ជីអ្នកដំណើរ។ */
+    // UC7.7 customer edits party size and passenger list.
     BookingDetailResponse updatePassengers(String code, UpdatePassengersRequest request);
 
-    /** Job — លុបចោលការកក់ {@code PENDING} ដែលមិនបានទូទាត់ក្នុង ២៤ ម៉ោង។ */
+    // Job: cancels PENDING bookings left unpaid for 24 hours.
     void autoCancelExpiredPending();
 }

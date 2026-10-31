@@ -14,15 +14,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Set;
 
-/**
- * ទិន្នន័យបង្កើត Tour ថ្មី — UC4.1។
- *
- * <p>{@code code}, {@code slug}, {@code isPublished} កំណត់ដោយប្រព័ន្ធ។ Tour បង្កើតជា draft ជានិច្ច។
- *
- * <p>វិន័យឆ្លង field ({@code durationNights <= durationDays} និង
- * {@code minGroupSize <= maxGroupSize}) ពិនិត្យក្នុង Service ព្រោះ Bean Validation មិនអាច
- * ប្រៀបធៀប field ២ ដោយងាយទេ។
- */
+// UC4.1: code, slug and isPublished are system-set; cross-field rules are checked in the service.
 public record CreateTourRequest(
 
         @NotBlank(message = "Tour title is required")

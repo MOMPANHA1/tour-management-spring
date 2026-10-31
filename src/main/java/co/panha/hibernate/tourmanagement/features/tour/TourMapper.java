@@ -14,12 +14,7 @@ import org.mapstruct.NullValuePropertyMappingStrategy;
 
 import java.time.LocalDate;
 
-/**
- * បម្លែង {@link Tour} ↔ DTO។
- *
- * <p>ទំនាក់ទំនង ({@code category}, {@code destinations}, {@code images}) កំណត់ដោយ Service
- * ព្រោះវាត្រូវការទាញ entity ពី database ជាមុន — mapper មិនប៉ះ database ទេ។
- */
+// Maps Tour <-> DTO; relations are set by the service because they need DB lookups.
 @Mapper(componentModel = "spring")
 public interface TourMapper {
 
@@ -58,7 +53,7 @@ public interface TourMapper {
 
     TourImageResponse toImageResponse(TourImage image);
 
-    /** {@code nextDepartureDate} មកពី Service (ScheduleRepository) — mapper មិនប៉ះ database។ */
+    // nextDepartureDate comes from the service (ScheduleRepository); the mapper does not touch the database.
     @Mapping(target = "categoryName", source = "tour.category.name")
     @Mapping(target = "nextDepartureDate", source = "nextDepartureDate")
     TourCardResponse toCardResponse(Tour tour, LocalDate nextDepartureDate);

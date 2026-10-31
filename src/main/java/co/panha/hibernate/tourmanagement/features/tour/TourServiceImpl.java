@@ -53,21 +53,21 @@ public class TourServiceImpl implements TourService {
     @Transactional
     public TourDetailResponse createNew(CreateTourRequest request) {
 
-        // ១. Validate — វិន័យឆ្លង field
+        // 1. Validate cross-field rules
         requireNightsWithinDays(request.durationNights(), request.durationDays());
         requireGroupSizeOrder(request.minGroupSize(), request.maxGroupSize());
 
-        // ២. Load ធនធានពាក់ព័ន្ធ
+        // 2. Load related resources
         Category category = loadCategory(request.categoryId());
         Set<Destination> destinations = loadDestinations(request.destinationIds());
 
-        // ５. Build
+        // 3. Build
         Tour tour = tourMapper.toEntity(request);
         tour.setCode(nextTourCode());
         tour.setSlug(GenerateUtils.generateUniqueSlug(request.title(), tourRepository::existsBySlug));
         tour.setCategory(category);
         tour.setDestinations(destinations);
-        tour.setIsPublished(false);          // បង្កើតជា draft ជានិច្ច
+        tour.setIsPublished(false);          // Always created as draft
         tour.setAverageRating(0.0);
         tour.setReviewCount(0);
         tour.setIsDeleted(false);
@@ -78,7 +78,7 @@ public class TourServiceImpl implements TourService {
 
         replaceImages(tour, request.images());
 
-        // ៦. Save + ８. Return
+        // 4. Save and return
         return toDetailResponse(tourRepository.save(tour));
     }
 
@@ -132,8 +132,7 @@ public class TourServiceImpl implements TourService {
 
         Tour tour = loadById(id);
 
-        // ពិនិត្យវិន័យឆ្លង field លើ*លទ្ធផលចុងក្រោយ* មិនមែនលើ request ទេ — ព្រោះ PATCH អាចផ្ញើមក
-        // តែ durationNights ហើយបន្សល់ Tour ដែលមានយប់ច្រើនជាងថ្ងៃ។
+        // Validate the final result, not the request: a PATCH with only durationNights could leave nights > days.
         Integer finalDays = (request.durationDays() != null) ? request.durationDays() : tour.getDurationDays();
         Integer finalNights = (request.durationNights() != null) ? request.durationNights() : tour.getDurationNights();
         requireNightsWithinDays(finalNights, finalDays);
@@ -159,7 +158,7 @@ public class TourServiceImpl implements TourService {
 
         tourMapper.updateEntity(request, tour);
 
-        // បញ្ជីរូបភាពជាការជំនួសពេញ មិនមែនការបន្ថែម — null មានន័យថា "កុំប៉ះ"
+        // Image list is a full replacement; null means leave untouched
         if (request.images() != null) {
             replaceImages(tour, request.images());
         }
@@ -188,14 +187,14 @@ public class TourServiceImpl implements TourService {
 
         Tour tour = loadById(id);
 
-        // លុបមិនបានបើនៅមានការកក់សកម្ម — ភ្ញៀវបានបង់ប្រាក់ទុករួចហើយ
+        // Cannot delete while active bookings exist; customers have already paid
         long activeBookings = bookingRepository.countActiveBookingsByTour(tour.getId());
         if (activeBookings > 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Cannot delete tour with active bookings (" + activeBookings + ")");
         }
 
-        tour.setIsPublished(false);          // ដកចេញពីការលក់មុនលុប
+        tour.setIsPublished(false);          // Take off sale before deleting
         tour.setIsDeleted(true);
         tourRepository.save(tour);
     }
@@ -210,22 +209,15 @@ public class TourServiceImpl implements TourService {
                 .toList();
     }
 
-    // ---------- ជំនួយខាងក្នុង ----------
+    // ---------- Internal helpers ----------
 
-    /**
-     * បំពេញ {@code nextDepartureDate} ពី ScheduleRepository។
-     *
-     * <p><b>ចំណាំអំពីដំណើរការ</b>៖ នៅ {@code search} វាបង្កើត query ១ ក្នុងមួយ Tour
-     * (ទំព័រ ១២ → ១៣ query)។ បើបញ្ជីនេះក្លាយជាចំណុចយឺត សូមប្តូរទៅ query តែមួយដែល
-     * {@code GROUP BY tour_id} រួចផ្គូផ្គងក្នុងអង្គចងចាំ។
-     */
+    // Fill nextDepartureDate; costs one query per tour in search, so switch to a grouped query if it gets slow.
     private TourCardResponse toCardResponse(Tour tour) {
         return tourMapper.toCardResponse(tour, nextDepartureDate(tour));
     }
 
     private TourDetailResponse toDetailResponse(Tour tour) {
-        // TODO ដំណាក់កាល ４៖ បន្ថែម upcomingSchedules (មាន F5 ហើយ តែត្រូវពង្រីក DTO)
-        //   និង recentReviews (F9)
+        // TODO: phase 4 - add upcomingSchedules (F5 exists, DTO must grow) and recentReviews (F9)
         return tourMapper.toDetailResponse(tour, nextDepartureDate(tour));
     }
 
@@ -245,11 +237,7 @@ public class TourServiceImpl implements TourService {
                         "Category not found with slug = " + categoryId));
     }
 
-    /**
-     * ទាញទីតាំងតាម id — បោះ 404 ដោយរាយ id ណាដែលរកមិនឃើញ។
-     *
-     * <p>ការប្រាប់ត្រឹម "រកមិនឃើញទីតាំង" មិនគ្រប់គ្រាន់ទេ ពេល client ផ្ញើ id ១០ មក។
-     */
+    // Load destinations by id; the 404 lists every missing id.
     private Set<Destination> loadDestinations(Set<Long> ids) {
         List<Destination> found = destinationRepository.findAllByIdInAndIsDeletedFalse(List.copyOf(ids));
 
@@ -263,7 +251,7 @@ public class TourServiceImpl implements TourService {
         return new LinkedHashSet<>(found);
     }
 
-    /** ជំនួសបញ្ជីរូបភាពទាំងមូល — {@code orphanRemoval} លុបជួរចាស់ចេញពី database។ */
+    // Replace the whole image list; orphanRemoval deletes old rows.
     private void replaceImages(Tour tour, List<TourImageRequest> imageRequests) {
         tour.clearImages();
 
@@ -294,7 +282,7 @@ public class TourServiceImpl implements TourService {
         }
     }
 
-    /** លក្ខខណ្ឌបើកលក់ — Tour ដែលព័ត៌មានមិនពេញលេញមិនគួរបង្ហាញលើទំព័រសាធារណៈទេ។ */
+    // Publish rule: tours with incomplete info must not appear on public pages.
     private void requireReadyToPublish(Tour tour) {
 
         if (tour.getDescription() == null || tour.getDescription().isBlank()) {
@@ -316,12 +304,7 @@ public class TourServiceImpl implements TourService {
         }
     }
 
-    /**
-     * បម្លែង {@code sortBy} ទៅ {@link Sort} ដោយប្រើតែតម្លៃក្នុងបញ្ជីស។
-     *
-     * <p>មិនបញ្ជូន {@code sortBy} ទៅ {@code Sort.by()} ដោយផ្ទាល់ទេ — បើធ្វើដូច្នោះ client
-     * អាចតម្រៀបតាម property ណាក៏បាន ហើយឈ្មោះមិនត្រឹមត្រូវនឹងបង្ក 500។
-     */
+    // Map sortBy to Sort using a whitelist only; raw values would allow any property and cause 500s.
     private Sort resolveSort(String sortBy) {
         if (sortBy == null) {
             return Sort.by(Sort.Direction.DESC, "createdAt");
@@ -343,7 +326,7 @@ public class TourServiceImpl implements TourService {
         return (size == null || size <= 0 || size > MAX_PAGE_SIZE) ? DEFAULT_PAGE_SIZE : size;
     }
 
-    /** ដូច {@code GuideServiceImpl.nextGuideCode()} — រំកិលទៅមុខរហូតដល់លេខទំនេរ។ */
+    // Same as GuideServiceImpl.nextGuideCode(); advance until the code is unused.
     private String nextTourCode() {
         long count = tourRepository.countByIsDeletedFalse();
 

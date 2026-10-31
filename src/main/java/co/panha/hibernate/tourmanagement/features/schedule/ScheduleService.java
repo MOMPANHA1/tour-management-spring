@@ -9,33 +9,27 @@ import co.panha.hibernate.tourmanagement.features.schedule.dto.UpdateScheduleReq
 import java.time.LocalDate;
 import java.util.List;
 
-/**
- * សេវាកម្មកាលវិភាគចេញដំណើរ — F5។
- */
+// Departure schedule service (F5).
 public interface ScheduleService {
 
-    /** UC5.1 — បង្កើតកាលវិភាគថ្មី។ */
+    // UC5.1: create a schedule.
     ScheduleResponse createNew(CreateScheduleRequest request);
 
-    /** UC5.2 — កាលវិភាគបើកទទួលការកក់របស់ Tour មួយ។ */
+    // UC5.2: open schedules of a tour.
     List<ScheduleResponse> findByTour(Long tourId, LocalDate fromDate);
 
-    /** UC5.3 — កាលវិភាគមួយ + កៅអីនៅសល់។ */
+    // UC5.3: one schedule with remaining seats.
     ScheduleResponse findById(Long id);
 
-    /** UC5.6 — កែកាលវិភាគ (PATCH)។ */
+    // UC5.6: update a schedule (PATCH).
     ScheduleResponse updateById(Long id, UpdateScheduleRequest request);
 
-    /** UC5.4 — ចាត់តាំងមគ្គុទ្ទេសក៍។ */
+    // UC5.4: assign a guide.
     ScheduleResponse assignGuide(Long id, AssignGuideRequest request);
 
-    /** UC5.5 — បោះបង់កាលវិភាគ។ */
+    // UC5.5: cancel a schedule.
     ScheduleResponse cancel(Long id, CancelScheduleRequest request);
 
-    /**
-     * Job ប្រចាំថ្ងៃ — រំកិលស្ថានភាពតាមកាលបរិច្ឆេទ។
-     *
-     * <p>ក. ថ្ងៃចេញកន្លងផុត → {@code DEPARTED} · ខ. ថ្ងៃត្រឡប់កន្លងផុត → {@code COMPLETED}
-     */
+    // Daily job: past departure -> DEPARTED, past return -> COMPLETED.
     void refreshScheduleStatuses();
 }

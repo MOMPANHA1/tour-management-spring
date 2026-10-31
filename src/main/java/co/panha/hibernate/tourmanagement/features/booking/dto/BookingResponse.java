@@ -6,14 +6,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-/**
- * ទិន្នន័យការកក់សម្រាប់បញ្ជី។
- *
- * @param customerName ឈ្មោះអតិថិជន — <b>{@code null} សម្រាប់អតិថិជនខ្លួនឯង</b>
- *                     ហើយបំពេញតែពេល ADMIN មើល។ គ្មានប្រយោជន៍បង្ហាញឈ្មោះខ្លួនឯងឡើងវិញ
- *                     ក្នុងបញ្ជីការកក់របស់ខ្លួន។
- * @param remainingAmount {@code totalPrice − paidAmount} — គណនាពេលអាន មិនរក្សាទុក។
- */
+// List view; customerName is null for the customer's own view, remainingAmount is computed on read.
 public record BookingResponse(
         String code,
         BookingStatus status,

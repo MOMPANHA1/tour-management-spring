@@ -6,26 +6,24 @@ import co.panha.hibernate.tourmanagement.features.customer.dto.PatchCustomerRequ
 import co.panha.hibernate.tourmanagement.features.customer.dto.RegisterCustomerRequest;
 import co.panha.hibernate.tourmanagement.features.customer.dto.UpdateCustomerStatusRequest;
 
-/**
- * សេវាកម្មអតិថិជន — F6។
- */
+// F6 customer service.
 public interface CustomerService {
 
-    /** UC6.1 — ចុះឈ្មោះអតិថិជនថ្មី (បង្កើត user ក្នុង Keycloak ផង)។ */
+    // UC6.1 register a new customer (also creates the Keycloak user).
     CustomerResponse register(RegisterCustomerRequest request);
 
-    /** UC6.2 — មើលប្រវត្តិរូបខ្លួនឯង។ */
+    // UC6.2 view own profile.
     CustomerResponse findMe();
 
-    /** UC6.3 — កែប្រវត្តិរូបខ្លួនឯង (PATCH)។ */
+    // UC6.3 update own profile (PATCH).
     CustomerResponse updateMe(PatchCustomerRequest request);
 
-    /** UC6.4 — បញ្ជីអតិថិជន ស្វែងរកតាមពាក្យគន្លឹះបាន។ */
+    // UC6.4 list customers, optionally by keyword.
     PageResponse<CustomerResponse> findAll(String keyword, Integer page, Integer size);
 
-    /** UC6.5 — អតិថិជនម្នាក់តាម id។ */
+    // UC6.5 get one customer by id.
     CustomerResponse findById(Long id);
 
-    /** UC6.6 — ប្តូរស្ថានភាពគណនី (ផ្អាក / ដោះការផ្អាក)។ */
+    // UC6.6 change account status (suspend / unsuspend).
     CustomerResponse changeStatus(Long id, UpdateCustomerStatusRequest request);
 }

@@ -30,10 +30,10 @@ import java.util.Set;
 @Transactional(readOnly = true)
 public class CustomerServiceImpl implements CustomerService {
 
-    /** អាយុអប្បបរមាដើម្បីបើកគណនីដោយខ្លួនឯង។ */
+    // Minimum age to self-register.
     private static final int MIN_AGE = 16;
 
-    /** ស្ថានភាពដែលបិទ user ក្នុង Keycloak។ */
+    // Statuses that disable the Keycloak user.
     private static final Set<CustomerStatus> BLOCKING_STATUSES =
             Set.of(CustomerStatus.SUSPENDED, CustomerStatus.BLOCKED);
 
@@ -42,28 +42,19 @@ public class CustomerServiceImpl implements CustomerService {
     private final BookingRepository bookingRepository;
     private final KeycloakUserService keycloakUserService;
 
-    /**
-     * UC6.1 — ចុះឈ្មោះ។
-     *
-     * <p><b>លំដាប់សំខាន់</b>៖ ពិនិត្យស្ទួនក្នុង database <b>មុន</b> ហៅ Keycloak — ដើម្បីកុំឲ្យ
-     * បង្កើត user រួចទើបដឹងថាលេខទូរស័ព្ទស្ទួន។
-     *
-     * <p><b>គ្មាន transaction ឆ្លងប្រព័ន្ធ</b>៖ Keycloak និង Postgres ជាប្រព័ន្ធពីរដាច់ពីគ្នា។
-     * បើការ save បរាជ័យក្រោយ Keycloak បង្កើត user រួច នោះនឹងសល់ user កំព្រា — ដូច្នេះត្រូវ
-     * លុបវាវិញ (compensation) រួចបោះកំហុសដើមបន្ត។
-     */
+    // UC6.1: duplicates are checked in the DB before calling Keycloak; if save fails, the Keycloak user is deleted (compensation).
     @Override
     @Transactional
     public CustomerResponse register(RegisterCustomerRequest request) {
 
-        // ១. Validate
+        // 1. Validate
         if (!request.password().equals(request.confirmedPassword())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Passwords do not match");
         }
 
         requireMinimumAge(request.dateOfBirth());
 
-        // ៣. Check Rules — ស្ទួន ៣ ចំណុច
+        // 3. Check Rules: three duplicate checks
         if (customerRepository.existsByUsername(request.username())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Username '" + request.username() + "' is already taken");
@@ -77,7 +68,7 @@ public class CustomerServiceImpl implements CustomerService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Phone number is already registered");
         }
 
-        // ៥. Build — Keycloak មុន ព្រោះយើងត្រូវការ keycloakId ដើម្បីបំពេញ entity
+        // 5. Build: Keycloak first, since keycloakId is needed to fill the entity
         String keycloakId = keycloakUserService.createUser(
                 request.username(), request.email(), request.fullName(), request.password());
 
@@ -87,12 +78,11 @@ public class CustomerServiceImpl implements CustomerService {
             customer.setStatus(CustomerStatus.ACTIVE);
             customer.setIsDeleted(false);
 
-            // saveAndFlush មិនមែន save — ដើម្បីឲ្យការបំពានលើ unique constraint លេចឡើង
-            // នៅត្រង់នេះ មិនមែននៅពេល commit (ដែលនៅក្រៅ try ហើយ compensation មិនរត់)។
+            // saveAndFlush so unique violations surface here (inside try) rather than at commit.
             Customer saved = customerRepository.saveAndFlush(customer);
 
-            // ៧. Side Effects
-            // TODO ដំណាក់កាល ៥៖ notificationService.sendWelcomeEmail(saved)
+            // 7. Side Effects
+            // TODO: notificationService.sendWelcomeEmail(saved)
 
             return toResponseWithStats(saved);
 
@@ -148,12 +138,7 @@ public class CustomerServiceImpl implements CustomerService {
         return toResponseWithStats(loadById(id));
     }
 
-    /**
-     * UC6.6 — ផ្អាក ឬដោះការផ្អាកគណនី។
-     *
-     * <p>ប្តូរទាំង database <b>និង</b> Keycloak — បើប្តូរតែ database អតិថិជននៅតែ login បាន
-     * ហើយទទួល token ដែលមាន role {@code CUSTOMER} ធម្មតា ដូច្នេះការផ្អាកគ្មានប្រសិទ្ធភាពទេ។
-     */
+    // UC6.6: updates both the DB and Keycloak, otherwise a suspended customer could still log in.
     @Override
     @Transactional
     public CustomerResponse changeStatus(Long id, UpdateCustomerStatusRequest request) {
@@ -175,16 +160,16 @@ public class CustomerServiceImpl implements CustomerService {
         keycloakUserService.setEnabled(saved.getKeycloakId(),
                 saved.getStatus() == CustomerStatus.ACTIVE);
 
-        // TODO ដំណាក់កាល ៥៖ notificationService.notifyAccountStatusChanged(saved, request.reason())
+        // TODO: notificationService.notifyAccountStatusChanged(saved, request.reason())
         log.info("Customer id={} status changed to {} (reason: {})",
                 saved.getId(), saved.getStatus(), request.reason());
 
         return toResponseWithStats(saved);
     }
 
-    // ---------- ជំនួយខាងក្នុង ----------
+    // ---------- Internal helpers ----------
 
-    /** អតិថិជនដែលកំពុង login — ស្ពានពី JWT មកតារាង {@code customers}។ */
+    // Current logged-in customer, resolved from the JWT.
     private Customer loadMe() {
         String keycloakId = AuthUtils.currentKeycloakId();
 
@@ -199,7 +184,7 @@ public class CustomerServiceImpl implements CustomerService {
                         "Customer not found with id = " + id));
     }
 
-    /** {@code null} អនុញ្ញាត — {@code dateOfBirth} ជាជម្រើស។ */
+    // A null dateOfBirth is allowed; it is optional.
     private void requireMinimumAge(LocalDate dateOfBirth) {
         if (dateOfBirth == null) {
             return;
@@ -211,12 +196,7 @@ public class CustomerServiceImpl implements CustomerService {
         }
     }
 
-    /**
-     * ការផ្អាកអតិថិជនដែលមានការកក់សកម្មមិនត្រូវបានហាមទេ — តែត្រូវមានហេតុផលកត់ត្រាទុក។
-     *
-     * <p>បច្ចុប្បន្នមិនអាចរាប់ការកក់បានទេ ព្រោះ {@code Booking} មិនទាន់មាន (F7) — ដូច្នេះ
-     * ច្បាប់នេះនៅមិនទាន់មានប្រសិទ្ធភាព។
-     */
+    // Suspending a customer with active bookings is allowed but requires a recorded reason.
     private void requireReasonWhenCustomerHasActiveBookings(Customer customer, String reason) {
 
         long active = bookingRepository.countActiveByCustomer(customer.getId());
@@ -227,7 +207,7 @@ public class CustomerServiceImpl implements CustomerService {
         }
     }
 
-    /** បំពេញស្ថិតិដែលមាននៅ database មិនមែនក្នុង entity — ដូចលំនាំ {@code GuideServiceImpl}។ */
+    // Fills DB-derived stats that are not stored on the entity.
     private CustomerResponse toResponseWithStats(Customer customer) {
 
         long totalBookings = bookingRepository.countByCustomerIdAndIsDeletedFalse(customer.getId());

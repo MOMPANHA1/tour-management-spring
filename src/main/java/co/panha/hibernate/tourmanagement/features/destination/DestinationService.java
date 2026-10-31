@@ -5,23 +5,21 @@ import co.panha.hibernate.tourmanagement.features.destination.dto.CreateDestinat
 import co.panha.hibernate.tourmanagement.features.destination.dto.DestinationResponse;
 import co.panha.hibernate.tourmanagement.features.destination.dto.UpdateDestinationRequest;
 
-/**
- * សេវាកម្មទីតាំងគោលដៅ — F2។
- */
+// Destination service (F2).
 public interface DestinationService {
 
-    /** UC2.1 — បង្កើតទីតាំងថ្មី។ */
+    // UC2.1 - create a destination.
     DestinationResponse createNew(CreateDestinationRequest request);
 
-    /** UC2.2 — បញ្ជីទីតាំង ត្រងតាមខេត្តបាន។ */
+    // UC2.2 - list destinations, optionally filtered by province.
     PageResponse<DestinationResponse> findAll(String province, Integer page, Integer size);
 
-    /** UC2.3 — ទីតាំងមួយតាម id។ */
+    // UC2.3 - get one destination by id.
     DestinationResponse findById(Long id);
 
-    /** UC2.4 — កែទីតាំង (PATCH)។ */
+    // UC2.4 - PATCH a destination.
     DestinationResponse updateById(Long id, UpdateDestinationRequest request);
 
-    /** UC2.5 — លុបទីតាំង (soft delete)។ */
+    // UC2.5 - soft delete a destination.
     void deleteById(Long id);
 }

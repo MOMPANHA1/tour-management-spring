@@ -39,10 +39,10 @@ import java.util.Map;
 @Transactional(readOnly = true)
 public class ReviewServiceImpl implements ReviewService {
 
-    /** BR5 — វាយតម្លៃបានក្នុង ៦០ ថ្ងៃបន្ទាប់ពីត្រឡប់។ */
+    // BR5 - review allowed within 60 days after return.
     private static final int REVIEW_WINDOW_DAYS = 60;
 
-    /** BR6 — កែបានក្នុង ៧ ថ្ងៃបន្ទាប់ពីបង្កើត។ */
+    // BR6 - editable within 7 days after creation.
     private static final int EDIT_WINDOW_DAYS = 7;
 
     private static final int MIN_STAR = 1;
@@ -53,20 +53,15 @@ public class ReviewServiceImpl implements ReviewService {
     private final TourRepository tourRepository;
     private final ReviewMapper reviewMapper;
 
-    /**
-     * UC9.1 — ផ្តល់ការវាយតម្លៃ។
-     *
-     * <p>{@code tour} និង {@code customer} ទាញចេញពីការកក់ មិនមែនពី request ទេ —
-     * ដូច្នេះអតិថិជនមិនអាចវាយតម្លៃ Tour ដែលខ្លួនមិនធ្លាប់ទៅបានឡើយ។
-     */
+    // UC9.1 - tour/customer come from the booking, not the request, so users cannot review unvisited tours.
     @Override
     @Transactional
     public ReviewResponse createNew(String bookingCode, CreateReviewRequest request) {
 
-        // ២. Load
+        // 2. Load
         Booking booking = loadOwnBooking(bookingCode);
 
-        // ៣. Check Rules
+        // 3. Check Rules
         if (booking.getStatus() != BookingStatus.COMPLETED) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "You can review only after the tour is completed (current: "
@@ -87,7 +82,7 @@ public class ReviewServiceImpl implements ReviewService {
                             + " days of return)");
         }
 
-        // ៥. Build
+        // 5. Build
         Review review = reviewMapper.toEntity(request);
         review.setBooking(booking);
         review.setTour(booking.getSchedule().getTour());
@@ -95,13 +90,13 @@ public class ReviewServiceImpl implements ReviewService {
         review.setIsVisible(true);
         review.setIsDeleted(false);
 
-        // ៦. Save
+        // 6. Save
         Review saved = reviewRepository.saveAndFlush(review);
 
-        // ៧. Side Effects
+        // 7. Side Effects
         recalculateTourRating(saved.getTour());
 
-        // TODO ដំណាក់កាល ៥៖ notificationService.notifyNewReview(saved)
+        // TODO: phase 5 - notificationService.notifyNewReview(saved)
         log.info("Review {} created for tour {} by customer {} — {} star(s)",
                 saved.getId(), saved.getTour().getId(), saved.getCustomer().getId(), saved.getRating());
 
@@ -119,12 +114,7 @@ public class ReviewServiceImpl implements ReviewService {
         return PageMapper.toPageResponse(result, this::toResponse);
     }
 
-    /**
-     * UC9.7 — សង្ខេបពិន្ទុ។
-     *
-     * <p>បំពេញគ្រប់ផ្កាយ ១..៥ ជានិច្ច ទោះគ្មានការវាយតម្លៃក៏ដោយ — បើមិនដូច្នេះទេ
-     * frontend ត្រូវពិនិត្យ {@code null} មុនគូររបារនីមួយៗ។
-     */
+    // UC9.7 - always fill stars 1..5 so the frontend needs no null checks.
     @Override
     public ReviewSummaryResponse getSummary(Long tourId) {
 
@@ -220,16 +210,12 @@ public class ReviewServiceImpl implements ReviewService {
         review.setRepliedBy(AuthUtils.currentUsername());
         reviewRepository.save(review);
 
-        // TODO ដំណាក់កាល ៥៖ notificationService.notifyReviewReplied(review)
+        // TODO: phase 5 - notificationService.notifyReviewReplied(review)
 
         return toResponse(review);
     }
 
-    /**
-     * UC9.6 — លាក់ការវាយតម្លៃមិនសមរម្យ។
-     *
-     * <p>ត្រូវគណនាពិន្ទុមធ្យមឡើងវិញ — ការវាយតម្លៃដែលលាក់មិនរាប់ចូលទេ។
-     */
+    // UC9.6 - hide review and recompute the tour average (hidden reviews are excluded).
     @Override
     @Transactional
     public ReviewResponse hide(Long id, HideReviewRequest request) {
@@ -252,14 +238,9 @@ public class ReviewServiceImpl implements ReviewService {
         return toResponse(review);
     }
 
-    // ---------- ជំនួយខាងក្នុង ----------
+    // ---------- internal helpers ----------
 
-    /**
-     * គណនា {@code tour.averageRating} និង {@code tour.reviewCount} ឡើងវិញ។
-     *
-     * <p>គណនាពីដើមជានិច្ច មិនមែនកែតម្លៃចាស់ទេ — ដូច្នេះការលាក់ ការលុប និងការកែពិន្ទុ
-     * ទាំងអស់ផ្តល់លទ្ធផលត្រឹមត្រូវដោយតក្កវិជ្ជាតែមួយ។
-     */
+    // Recompute averageRating/reviewCount from scratch so hide, delete and edit share one logic.
     private void recalculateTourRating(Tour tour) {
 
         tour.setAverageRating(round1(reviewRepository.averageRating(tour.getId())));
@@ -280,7 +261,7 @@ public class ReviewServiceImpl implements ReviewService {
                         "Review not found with id = " + id));
     }
 
-    /** ការវាយតម្លៃរបស់ខ្លួនឯង — បោះ <b>404</b> មិនមែន 403 ទេ ដូចលំនាំ {@code BookingServiceImpl}។ */
+    // Own review - throws 404 rather than 403, same as BookingServiceImpl.
     private Review loadOwnReview(Long id) {
 
         Review review = loadById(id);
@@ -306,12 +287,7 @@ public class ReviewServiceImpl implements ReviewService {
         return booking;
     }
 
-    /**
-     * បិទបាំងឈ្មោះអតិថិជន — {@code "Sok Dara"} → {@code "Sok D***"}។
-     *
-     * <p>ការវាយតម្លៃជាទិន្នន័យសាធារណៈ ដូច្នេះមិនបង្ហាញឈ្មោះពេញទេ។ រក្សាពាក្យទីមួយ
-     * និងអក្សរទីមួយនៃពាក្យបន្ទាប់ ដើម្បីឲ្យអ្នកអានសម្គាល់បានថាជាមនុស្សផ្សេងគ្នា។
-     */
+    // Mask customer name ("Sok Dara" -> "Sok D***") since reviews are public.
     private String maskCustomerName(String fullName) {
 
         if (fullName == null || fullName.isBlank()) {
@@ -332,7 +308,7 @@ public class ReviewServiceImpl implements ReviewService {
         return reviewMapper.toResponse(review, maskCustomerName(review.getCustomer().getFullName()));
     }
 
-    /** បង្គត់ទៅ ១ ខ្ទង់ទសភាគ — {@code 4.6666} → {@code 4.7}។ */
+    // Round to 1 decimal place.
     private Double round1(Double value) {
         if (value == null) {
             return 0.0;

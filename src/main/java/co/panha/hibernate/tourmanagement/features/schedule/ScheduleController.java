@@ -18,11 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * F5 — កាលវិភាគចេញដំណើរ។
- *
- * <p>សិទ្ធិ (ADMIN លើកលែង {@code GET}) នឹងអនុវត្តនៅដំណាក់កាល ៥ ពេលដាក់ Spring Security។
- */
+// Departure schedule endpoints (F5); ADMIN-only access is enforced in the Spring Security phase.
 @Tag(name = "Schedule")
 @RestController
 @RequiredArgsConstructor

@@ -15,26 +15,19 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
-/**
- * Field រួមគ្រប់ Entity — {@code id}, {@code isDeleted}, {@code createdAt}, {@code updatedAt}។
- *
- * <p>{@code @MappedSuperclass} មិនបង្កើតតារាងទេ — column ទាំង ៤ ចម្លងចូលតារាងកូនម្នាក់ៗ។
- *
- * <p>{@code createdAt} និង {@code updatedAt} បំពេញដោយ Spring Data Auditing ដែលបើកនៅ
- * {@code config/JpaAuditingConfig}។ បើ config នោះបាត់ តម្លៃទាំងពីរនឹង null ជានិច្ចដោយគ្មានកំហុសបង្ហាញ។
- */
+// Shared id, soft-delete flag and audit timestamps; auditing needs JpaAuditingConfig or they stay null.
 @Getter
 @Setter
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)
 public abstract class BaseEntity {
 
-    /** សោចម្បង — auto-increment ដោយ database ហើយបង្ហាញលើ API ដោយផ្ទាល់។ */
+    // Database-generated primary key.
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /** Soft delete — គ្រប់ query ត្រូវច្រោះ {@code isDeleted = false}។ */
+    // Soft delete flag; every query must filter isDeleted = false.
     @Column(nullable = false)
     private Boolean isDeleted = false;
 
@@ -45,7 +38,7 @@ public abstract class BaseEntity {
     @LastModifiedDate
     private LocalDateTime updatedAt;
 
-    /** សុវត្ថិភាពបន្ថែម៖ បំពេញ {@code isDeleted} បើ Service ភ្លេចកំណត់។ */
+    // Safety net: defaults isDeleted if the service forgot to set it.
     @PrePersist
     protected void onPrePersist() {
         if (isDeleted == null) {

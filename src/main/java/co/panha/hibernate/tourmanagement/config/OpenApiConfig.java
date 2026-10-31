@@ -11,34 +11,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * ឯកសារ API (Swagger UI) — {@code http://localhost:9090/swagger-ui.html}។
- *
- * <p>តួនាទីសំខាន់បំផុតគឺបន្ថែមប៊ូតុង <b>Authorize</b>។ បើគ្មានវាទេ រាល់ endpoint ដែលត្រូវការសិទ្ធិ
- * នឹងត្រឡប់ <b>401</b> ពេលចុច "Try it out" ព្រោះ Swagger មិនផ្ញើ header
- * {@code Authorization} ទៅជាមួយឡើយ។
- *
- * <p>ផ្តល់ជម្រើស <b>ពីរ</b> ដើម្បី authorize (ជ្រើសមួយណាក៏បាន)៖
- *
- * <ol>
- *   <li><b>{@code bearerAuth}</b> — paste token ដែលយកមកពី curl ដោយផ្ទាល់។
- *       ដំណើរការជានិច្ច គ្មានការរៀបចំបន្ថែម។</li>
- *   <li><b>{@code keycloak}</b> — វាយ username/password ក្នុង Swagger ហើយវាទៅយក token ឲ្យខ្លួនឯង។
- *       ស្រួលជាង តែត្រូវរៀបចំ <b>Web origins</b> ក្នុង Keycloak សិន (មើលខាងក្រោម)។</li>
- * </ol>
- *
- * <p><b>ការរៀបចំសម្រាប់ជម្រើសទី ២</b> — Swagger UI (port 9090) ហៅ Keycloak (port 1001)
- * ឆ្លងកាត់ browser ដូច្នេះត្រូវការ CORS៖
- * <pre>
- * Clients → tour-backend → Settings → Web origins → បន្ថែម  http://localhost:9090
- * </pre>
- * បើខ្វះជំហាននេះ browser នឹងបិទសំណើដោយស្ងាត់ ហើយ Swagger បង្ហាញត្រឹម "Auth ErrorTypeError:
- * Failed to fetch" ដែលមិនប្រាប់មូលហេតុពិតទេ។
- */
+// Swagger UI config; adds the Authorize button (bearerAuth token or Keycloak password flow).
 @Configuration
 public class OpenApiConfig {
 
-    /** យក issuer-uri ដែលមានស្រាប់ធ្វើជាប្រភពតែមួយ — កុំសរសេរ URL ម្តងទៀត។ */
+    // Reuse the existing issuer-uri as the single source of the Keycloak URL.
     @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}")
     private String issuerUri;
 
@@ -63,13 +40,12 @@ public class OpenApiConfig {
                         .addSecuritySchemes(BEARER_SCHEME, bearerScheme())
                         .addSecuritySchemes(OAUTH2_SCHEME, keycloakScheme()))
 
-                // SecurityRequirement ដាច់ដោយឡែកពីគ្នា មានន័យថា "មួយណាក៏បាន" (OR)។
-                // បើដាក់ទាំងពីរក្នុង object តែមួយ វានឹងក្លាយជា "ត្រូវមានទាំងពីរ" (AND) វិញ។
+                // Separate SecurityRequirement entries mean OR; putting both in one object would mean AND.
                 .addSecurityItem(new SecurityRequirement().addList(BEARER_SCHEME))
                 .addSecurityItem(new SecurityRequirement().addList(OAUTH2_SCHEME));
     }
 
-    /** ជម្រើសទី ១ — paste token ដោយផ្ទាល់។ */
+    // Option 1: paste a bearer token directly.
     private SecurityScheme bearerScheme() {
         return new SecurityScheme()
                 .name(BEARER_SCHEME)
@@ -79,13 +55,7 @@ public class OpenApiConfig {
                 .description("Paste តែ token ទទេៗ — កុំដាក់ពាក្យ \"Bearer \" នៅខាងមុខ។");
     }
 
-    /**
-     * ជម្រើសទី ២ — Swagger ទៅយក token ឲ្យខ្លួនឯង។
-     *
-     * <p>ប្រើ {@code password} flow ដូច curl ដែរ។ Swagger UI នឹងសួររក {@code client_id}
-     * និង {@code client_secret} ក្នុងប្រអប់ Authorize ដូច្នេះ <b>មិនចាំបាច់</b>ដាក់ secret
-     * ក្នុង {@code application.properties} ទេ។
-     */
+    // Option 2: Swagger fetches the token itself (password flow); needs Keycloak Web origins set for CORS.
     private SecurityScheme keycloakScheme() {
         OAuthFlow passwordFlow = new OAuthFlow()
                 .tokenUrl(issuerUri + "/protocol/openid-connect/token");

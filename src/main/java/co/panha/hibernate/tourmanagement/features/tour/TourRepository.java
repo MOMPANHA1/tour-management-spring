@@ -26,15 +26,12 @@ public interface TourRepository extends JpaRepository<Tour, Long>, JpaSpecificat
 
     long countByIsDeletedFalse();
 
-    /**
-     * ទាញ {@code category} មកជាមួយ ដើម្បីកុំឲ្យ {@code TourCardResponse.categoryName}
-     * បង្ក N+1 query (ទំព័រ ១២ Tour → ១៣ query បើគ្មាន)។
-     */
+    // Fetch category eagerly to avoid N+1 queries from TourCardResponse.categoryName.
     @Override
     @EntityGraph(attributePaths = {"category"})
     Page<Tour> findAll(Specification<Tour> spec, Pageable pageable);
 
-    /** UC4.7 — Tour ពេញនិយម (ត្រូវមានវាយតម្លៃយ៉ាងតិច ៣ ទើបចូលបញ្ជី)។ */
+    // UC4.7: popular tours (need at least 3 ratings to be listed).
     @EntityGraph(attributePaths = {"category"})
     @Query("""
             SELECT t FROM Tour t
@@ -45,11 +42,11 @@ public interface TourRepository extends JpaRepository<Tour, Long>, JpaSpecificat
             """)
     Page<Tour> findPopular(Pageable pageable);
 
-    /** ចំនួន Tour សកម្មក្នុងប្រភេទមួយ — ប្រើដោយ F1 Category។ */
+    // Active tours in one category; used by F1.
     @Query("SELECT COUNT(t) FROM Tour t WHERE t.category.id = :categoryId AND t.isDeleted = false")
     long countActiveByCategory(@Param("categoryId") Long categoryId);
 
-    /** ចំនួន Tour សកម្មដែលភ្ជាប់នឹងទីតាំងមួយ — ប្រើដោយ F2 Destination។ */
+    // Active tours linked to one destination; used by F2.
     @Query("""
             SELECT COUNT(t) FROM Tour t
             JOIN t.destinations d
@@ -57,8 +54,5 @@ public interface TourRepository extends JpaRepository<Tour, Long>, JpaSpecificat
             """)
     long countActiveByDestination(@Param("destinationId") Long destinationId);
 
-    // ចំណាំ៖ {@code averageRating} និង {@code reviewCount} គណនាឡើងវិញដោយ
-    //   ReviewServiceImpl.recalculateTourRating() — ប្រើ entity save ជំនួស @Modifying
-    //   bulk update ព្រោះ bulk update រំលង persistence context ហើយធ្វើឲ្យ entity
-    //   ដែលកំពុងកាន់ក្នុង transaction ដដែលមានតម្លៃចាស់។
+    // Note: rating fields are recalculated in ReviewServiceImpl.recalculateTourRating() via entity save, not bulk update, to keep the persistence context fresh.
 }

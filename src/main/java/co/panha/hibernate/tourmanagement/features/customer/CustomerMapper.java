@@ -12,8 +12,7 @@ import org.mapstruct.NullValuePropertyMappingStrategy;
 @Mapper(componentModel = "spring")
 public interface CustomerMapper {
 
-    // keycloakId និង status កំណត់ដោយ Service; id និង audit បំពេញដោយ JPA។
-    // password មិន map ទេ — វាទៅ Keycloak មិនមែនមកតារាងនេះ។
+    // keycloakId and status are set by the service; id and audit by JPA; password is not mapped (it goes to Keycloak).
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "keycloakId", ignore = true)
     @Mapping(target = "status", ignore = true)
@@ -25,7 +24,7 @@ public interface CustomerMapper {
     @Mapping(target = "updatedAt", ignore = true)
     Customer toEntity(RegisterCustomerRequest request);
 
-    /** PATCH — field ដែល client មិនផ្ញើ (null) មិនជាន់លើតម្លៃចាស់។ */
+    // PATCH: null fields do not overwrite existing values.
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "keycloakId", ignore = true)
@@ -37,12 +36,7 @@ public interface CustomerMapper {
     @Mapping(target = "updatedAt", ignore = true)
     void updateEntity(PatchCustomerRequest request, @MappingTarget Customer customer);
 
-    /**
-     * {@code totalBookings} និង {@code completedTours} មកពី Service (ការរាប់ក្នុង database)។
-     *
-     * <p>{@code memberSince} ទាញពី {@code createdAt} — ការពារ {@code null} ព្រោះ entity
-     * ដែលមិនទាន់ save មិនទាន់មាន audit timestamp ទេ។
-     */
+    // totalBookings and completedTours come from the service; memberSince is null-safe as unsaved entities lack createdAt.
     @Mapping(target = "totalBookings", source = "totalBookings")
     @Mapping(target = "completedTours", source = "completedTours")
     @Mapping(target = "memberSince",

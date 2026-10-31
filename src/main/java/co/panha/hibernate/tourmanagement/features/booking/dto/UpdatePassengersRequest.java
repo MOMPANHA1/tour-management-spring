@@ -8,11 +8,7 @@ import jakarta.validation.constraints.NotNull;
 
 import java.util.List;
 
-/**
- * កែចំនួន និងបញ្ជីអ្នកដំណើរ — UC7.7។
- *
- * <p>បញ្ជីជាការ<b>ជំនួសពេញ</b> មិនមែនការបន្ថែមទេ — អ្នកដំណើរចាស់ត្រូវលុបចោលទាំងអស់។
- */
+// UC7.7 request; the list fully replaces existing passengers rather than appending.
 public record UpdatePassengersRequest(
 
         @NotNull(message = "Number of people is required")

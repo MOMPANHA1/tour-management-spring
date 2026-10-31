@@ -9,29 +9,27 @@ import co.panha.hibernate.tourmanagement.features.guide.dto.UpdateGuideStatusReq
 import java.time.LocalDate;
 import java.util.List;
 
-/**
- * សេវាកម្មមគ្គុទ្ទេសក៍ — F3។
- */
+// Guide service (F3).
 public interface GuideService {
 
-    /** UC3.1 — បង្កើតមគ្គុទ្ទេសក៍ថ្មី។ */
+    // UC3.1 - create a guide.
     GuideResponse createNew(CreateGuideRequest request);
 
-    /** UC3.2 — បញ្ជីមគ្គុទ្ទេសក៍ ត្រងតាមស្ថានភាពបាន។ */
+    // UC3.2 - list guides, optionally filtered by status.
     PageResponse<GuideResponse> findAll(GuideStatus status, Integer page, Integer size);
 
-    /** UC3.6 — មគ្គុទ្ទេសក៍ទំនេរក្នុងចន្លោះកាលបរិច្ឆេទ។ */
+    // UC3.6 - guides available in a date range.
     List<GuideResponse> findAvailable(LocalDate startDate, LocalDate endDate);
 
-    /** UC3.3 — ប្រវត្តិរូបមគ្គុទ្ទេសក៍ម្នាក់។ */
+    // UC3.3 - guide profile.
     GuideResponse findById(Long id);
 
-    /** UC3.4 — កែព័ត៌មាន (PATCH)។ */
+    // UC3.4 - PATCH guide info.
     GuideResponse updateById(Long id, UpdateGuideRequest request);
 
-    /** UC3.5 — ប្តូរស្ថានភាព។ */
+    // UC3.5 - change status.
     GuideResponse changeStatus(Long id, UpdateGuideStatusRequest request);
 
-    /** លុបមគ្គុទ្ទេសក៍ (soft delete)។ */
+    // Soft delete a guide.
     void deleteById(Long id);
 }

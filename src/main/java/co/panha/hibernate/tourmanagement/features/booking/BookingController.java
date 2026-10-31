@@ -23,16 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
 
-/**
- * F7 — ការកក់។
- *
- * <p>ធនធាននេះប្រើ {@code code} ({@code BK-20260912-0001}) ជាកូនសោលើ URL ជំនួស {@code id} —
- * លេខកូដជាអ្វីដែលអតិថិជនឃើញលើប័ណ្ណបញ្ជាក់ ហើយវាមិនបង្ហាញចំនួនការកក់សរុបក្នុងប្រព័ន្ធដូច
- * លេខតាមលំដាប់ទេ។
- *
- * <p>សិទ្ធិកំណត់ក្នុង {@code security/SecurityConfig}៖ {@code /confirm} និងបញ្ជីទាំងអស់
- * សម្រាប់ {@code ADMIN} · ឯផ្លូវដែលនៅសល់សម្រាប់ {@code CUSTOMER}។
- */
+// F7 bookings; URLs use the booking code (not id) so totals are not leaked; roles are set in SecurityConfig.
 @Tag(name = "Booking")
 @RestController
 @RequiredArgsConstructor
@@ -47,10 +38,7 @@ public class BookingController {
         return bookingService.bookTour(request);
     }
 
-    /**
-     * ត្រូវប្រកាស<b>មុន</b> {@code @GetMapping("/{code}")} ដើម្បីកុំឲ្យ {@code me}
-     * ក្លាយជាលេខកូដការកក់។
-     */
+    // Must be declared before "/{code}" so "me" is not treated as a booking code.
     @GetMapping("/me")
     public PageResponse<BookingResponse> findMyBookings(
             @RequestParam(required = false) BookingStatus status,

@@ -12,7 +12,7 @@ import org.mapstruct.NullValuePropertyMappingStrategy;
 @Mapper(componentModel = "spring")
 public interface ReviewMapper {
 
-    // booking, tour, customer និង isVisible កំណត់ដោយ Service; id និង audit បំពេញដោយ JPA
+    // booking, tour, customer and isVisible are set by the service; id and audit fields by JPA
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "booking", ignore = true)
     @Mapping(target = "tour", ignore = true)
@@ -27,7 +27,7 @@ public interface ReviewMapper {
     @Mapping(target = "updatedAt", ignore = true)
     Review toEntity(CreateReviewRequest request);
 
-    /** PATCH — field ដែល client មិនផ្ញើ (null) មិនជាន់លើតម្លៃចាស់។ */
+    // PATCH - null fields from the client do not overwrite existing values.
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "booking", ignore = true)
@@ -43,7 +43,7 @@ public interface ReviewMapper {
     @Mapping(target = "updatedAt", ignore = true)
     void updateEntity(UpdateReviewRequest request, @MappingTarget Review review);
 
-    /** {@code customerName} បិទបាំងរួចមកពី Service។ */
+    // customerName is already masked by the service.
     @Mapping(target = "bookingCode", source = "review.booking.code")
     @Mapping(target = "tourId", source = "review.tour.id")
     @Mapping(target = "tourTitle", source = "review.tour.title")

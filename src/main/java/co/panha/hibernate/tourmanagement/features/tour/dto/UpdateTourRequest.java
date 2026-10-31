@@ -11,13 +11,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Set;
 
-/**
- * ទិន្នន័យកែ Tour — UC4.4 (PATCH)។ គ្រប់ field អាច {@code null}។
- *
- * <p><b>ចំណាំអំពី {@code images} និង {@code destinationIds}</b>៖ ពួកវាជា <i>បញ្ជីពេញ</i>
- * មិនមែនការបន្ថែមទេ។ ការផ្ញើ {@code images: []} នឹងលុបរូបភាពទាំងអស់ ចំណែកការមិនផ្ញើ
- * ({@code null}) នឹងទុកបញ្ជីចាស់ដដែល។
- */
+// UC4.4 PATCH: all nullable; images and destinationIds are full replacements (empty list clears, null keeps).
 public record UpdateTourRequest(
 
         @Size(max = 180, message = "Tour title cannot exceed 180 characters")

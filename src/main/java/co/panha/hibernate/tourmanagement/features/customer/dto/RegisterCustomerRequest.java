@@ -9,15 +9,7 @@ import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 
-/**
- * ទិន្នន័យចុះឈ្មោះអតិថិជនថ្មី — UC6.1។
- *
- * <p><b>ខុសពីផែនការដើម</b>៖ បន្ថែម {@code password} និង {@code confirmedPassword} ដែល
- * {@code pseudo-code.md} មិនបានរាយ។ ចាំបាច់ព្រោះការចុះឈ្មោះបង្កើត user ក្នុង Keycloak ផង —
- * គ្មានពាក្យសម្ងាត់ទេ អតិថិជននឹងចុះឈ្មោះបានតែ login មិនបាន។
- *
- * <p>ពាក្យសម្ងាត់ <b>មិនរក្សាទុកក្នុង database</b> ទេ — ផ្ញើទៅ Keycloak ហើយបោះចោល។
- */
+// UC6.1 request; password is sent to Keycloak and never stored in the database.
 public record RegisterCustomerRequest(
 
         @NotBlank(message = "Username is required")

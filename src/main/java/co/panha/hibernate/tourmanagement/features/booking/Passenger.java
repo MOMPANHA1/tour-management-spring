@@ -18,13 +18,7 @@ import lombok.Setter;
 
 import java.time.LocalDate;
 
-/**
- * អ្នកដំណើរម្នាក់ក្នុងការកក់មួយ។
- *
- * <p><b>មិនពង្រីក {@code BaseEntity}</b> ដោយចេតនា — វាជា entity កូនដែលគ្មានអត្ថិភាព
- * ដោយឡែកពី {@code Booking} ទេ។ គ្មាន soft delete ព្រោះការលុបធ្វើតាម {@code orphanRemoval}
- * ពេលអតិថិជនកែបញ្ជីអ្នកដំណើរ។
- */
+// Child of Booking; intentionally not a BaseEntity (no soft delete, removed via orphanRemoval).
 @Getter
 @Setter
 @Entity
@@ -52,7 +46,7 @@ public class Passenger {
     @Column(length = 40)
     private String passportNo;
 
-    /** អ្នកដំណើរមេ — ជាអ្នកទទួលការទាក់ទង។ ត្រូវមានតែម្នាក់ក្នុងការកក់មួយ។ */
+    // Lead passenger and contact person; exactly one per booking.
     @Column(nullable = false)
     private Boolean isLead = false;
 }

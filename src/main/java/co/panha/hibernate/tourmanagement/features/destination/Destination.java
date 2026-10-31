@@ -11,11 +11,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 
-/**
- * ទីតាំងគោលដៅ — សៀមរាប · កែប · មណ្ឌលគិរី · កោះរ៉ុង។
- *
- * <p>ឈ្មោះមិនស្ទួនក្នុងខេត្តតែមួយ ប៉ុន្តែ "ផ្សារចាស់" អាចមានទាំងភ្នំពេញ និងសៀមរាប។
- */
+// Destination location; name is unique per province, so the same name can exist in different provinces.
 @Getter
 @Setter
 @Entity
@@ -41,7 +37,7 @@ public class Destination extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    /** {@code NUMERIC(10,7)} — ៣ ខ្ទង់មុនចុច + ៧ ខ្ទង់ក្រោយ ≈ ភាពជាក់លាក់ ១ សង់ទីម៉ែត្រ។ */
+    // NUMERIC(10,7): 3 digits before and 7 after the point, about 1 cm precision.
     @Column(precision = 10, scale = 7)
     private BigDecimal latitude;
 
@@ -51,5 +47,5 @@ public class Destination extends BaseEntity {
     @Column(length = 255)
     private String imageUrl;
 
-    // ចំណាំ៖ គ្មាន @ManyToMany បញ្ច្រាសទេ — ការរាប់ធ្វើដោយ TourRepository.countActiveByDestination()។
+    // No reverse @ManyToMany: counts come from TourRepository.countActiveByDestination().
 }

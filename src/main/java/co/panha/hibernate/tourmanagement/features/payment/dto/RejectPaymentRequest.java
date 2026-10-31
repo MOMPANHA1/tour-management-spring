@@ -3,7 +3,7 @@ package co.panha.hibernate.tourmanagement.features.payment.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-/** ហេតុផលបដិសេធការទូទាត់ — UC8.4។ ចាំបាច់ ដើម្បីឲ្យអតិថិជនដឹងថាត្រូវធ្វើអ្វីបន្ត។ */
+// UC8.4 rejection reason; required so the customer knows what to do next.
 public record RejectPaymentRequest(
 
         @NotBlank(message = "Reject reason is required")

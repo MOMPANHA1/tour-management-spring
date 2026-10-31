@@ -12,16 +12,11 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Locale;
 
-/**
- * លក្ខខណ្ឌស្វែងរក Tour — ផ្សំគ្នាបានតាមតម្រូវការ (UC4.2)។
- *
- * <p>ហេតុអ្វីប្រើ Specification ជំនួស {@code @Query}? ព្រោះ filter មាន ៨ លក្ខខណ្ឌជាជម្រើស —
- * ការសរសេរ JPQL គ្របដណ្តប់គ្រប់បន្សំត្រូវការ query ២⁸ = ២៥៦។ Specification ផ្សំវាពេល runtime។
- */
+// Composable tour search conditions (UC4.2); Specification avoids writing a query per filter combination.
 public final class TourSpecs {
 
     private TourSpecs() {
-        // ថ្នាក់ឧបករណ៍ — មិនបង្កើត instance
+        // Utility class; no instances
     }
 
     public static Specification<Tour> isNotDeleted() {
@@ -32,7 +27,7 @@ public final class TourSpecs {
         return (root, query, cb) -> cb.isTrue(root.get("isPublished"));
     }
 
-    /** ស្វែងរកក្នុង {@code title} ឬ {@code description} ដោយមិនរើសអក្សរតូច/ធំ។ */
+    // Case-insensitive match on title or description.
     public static Specification<Tour> titleOrDescLike(String keyword) {
         String pattern = "%" + keyword.toLowerCase(Locale.ROOT) + "%";
 
@@ -46,12 +41,7 @@ public final class TourSpecs {
         return (root, query, cb) -> cb.equal(root.get("category").get("id"), categoryId);
     }
 
-    /**
-     * Tour ដែលទៅដល់ទីតាំងនេះ។
-     *
-     * <p>{@code query.distinct(true)} ចាំបាច់ — ការ join តារាង M:N បង្កើតជួរស្ទួន
-     * ពេល Tour មួយភ្ជាប់ទីតាំងច្រើន ហើយ {@code totalElements} នឹងរាប់លើស។
-     */
+    // Tours reaching this destination; distinct is needed because the M:N join duplicates rows and inflates totalElements.
     public static Specification<Tour> hasDestination(Long destinationId) {
         return (root, query, cb) -> {
             if (query != null) {
@@ -62,7 +52,7 @@ public final class TourSpecs {
         };
     }
 
-    /** ជួរតម្លៃ — ព្រំដែនណាដែល null នឹងមិនកំណត់។ */
+    // Price range; a null bound is unbounded.
     public static Specification<Tour> priceBetween(BigDecimal min, BigDecimal max) {
         return (root, query, cb) -> {
             if (min != null && max != null) {
@@ -75,7 +65,7 @@ public final class TourSpecs {
         };
     }
 
-    /** ជួររយៈពេលជាថ្ងៃ — ព្រំដែនណាដែល null នឹងមិនកំណត់។ */
+    // Duration range in days; a null bound is unbounded.
     public static Specification<Tour> daysBetween(Integer min, Integer max) {
         return (root, query, cb) -> {
             if (min != null && max != null) {
@@ -92,12 +82,7 @@ public final class TourSpecs {
         return (root, query, cb) -> cb.equal(root.get("difficulty"), difficulty);
     }
 
-    /**
-     * Tour ដែលមានកាលវិភាគបើកទទួលការកក់ចេញដំណើរនៅ ឬក្រោយថ្ងៃដែលកំណត់។
-     *
-     * <p>ប្រើ {@code EXISTS} subquery មិនមែន {@code JOIN} ទេ — Tour មួយអាចមានកាលវិភាគរាប់រយ
-     * ហើយ join នឹងបង្កើតជួរស្ទួនដែលត្រូវ {@code DISTINCT} ចេញវិញ។
-     */
+    // Tours with an open schedule departing on or after the date; EXISTS avoids duplicate rows from a JOIN.
     public static Specification<Tour> hasScheduleAfter(LocalDate date) {
         return (root, query, cb) -> {
             Subquery<Long> sub = query.subquery(Long.class);

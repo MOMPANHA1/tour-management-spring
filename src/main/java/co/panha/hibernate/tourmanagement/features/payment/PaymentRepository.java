@@ -23,12 +23,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
 
     List<Payment> findAllByBookingIdAndIsDeletedFalseOrderByCreatedAtDesc(Long bookingId);
 
-    /**
-     * ចំនួនចំណូលដែលបញ្ជាក់រួច — ញែក {@code REFUND} ចេញ។
-     *
-     * <p>{@code COALESCE} ចាំបាច់៖ {@code SUM} លើសំណុំទទេត្រឡប់ {@code null} មិនមែន 0 ទេ
-     * ដែលនឹងបង្ក {@code NullPointerException} ពេលធ្វើប្រមាណវិធី។
-     */
+    // Verified revenue excluding REFUND; COALESCE because SUM over an empty set returns null.
     @Query("""
             SELECT COALESCE(SUM(p.amount), 0) FROM Payment p
             WHERE p.booking.id = :bookingId
@@ -38,7 +33,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
             """)
     BigDecimal sumVerifiedAmount(@Param("bookingId") Long bookingId);
 
-    /** ចំនួនដែលកំពុងរង់ចាំការបញ្ជាក់ — រាប់ចូលដើម្បីការពារការបង់លើស។ */
+    // Pending amount; counted to prevent overpayment.
     @Query("""
             SELECT COALESCE(SUM(p.amount), 0) FROM Payment p
             WHERE p.booking.id = :bookingId
@@ -48,13 +43,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
             """)
     BigDecimal sumPendingAmount(@Param("bookingId") Long bookingId);
 
-    /**
-     * ចំនួនដែលសងវិញ។
-     *
-     * <p>រាប់ទាំង {@code PENDING} ផង ខុសពីការបូកចំណូល — ព្រោះការសងវិញដែលបានសម្រេច
-     * ជាកាតព្វកិច្ចរួចហើយ ទោះបីហិរញ្ញវត្ថុមិនទាន់ផ្ទេរក៏ដោយ។ បើមិនរាប់ ADMIN អាចបង្កើត
-     * ការសងវិញច្រើនដងលើលុយដដែល។
-     */
+    // Refunded amount; includes PENDING so ADMIN cannot create repeated refunds for the same money.
     @Query("""
             SELECT COALESCE(SUM(p.amount), 0) FROM Payment p
             WHERE p.booking.id = :bookingId
@@ -66,7 +55,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
             """)
     BigDecimal sumRefundedAmount(@Param("bookingId") Long bookingId);
 
-    // ---------- របាយការណ៍ចំណូល (UC8.6) ----------
+    // ---------- Revenue report (UC8.6) ----------
 
     @Query("""
             SELECT COALESCE(SUM(p.amount), 0) FROM Payment p
@@ -97,7 +86,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
             """)
     long countBetween(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 
-    /** ចំណូលបែងចែកតាមវិធីទូទាត់ — ត្រឡប់ {@code [method, sum]} មួយជួរក្នុងមួយវិធី។ */
+    // Revenue per payment method; one [method, sum] row per method.
     @Query("""
             SELECT p.method, COALESCE(SUM(p.amount), 0) FROM Payment p
             WHERE p.isDeleted = false
@@ -108,7 +97,7 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
             """)
     List<Object[]> revenueByMethod(@Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
 
-    /** ចំនួនការទូទាត់ក្នុងថ្ងៃមួយ — សម្រាប់បង្កើតលេខយោងតាមលំដាប់។ */
+    // Payments created on a given day; used to generate sequential references.
     @Query("""
             SELECT COUNT(p) FROM Payment p
             WHERE p.paidAt >= :dayStart AND p.paidAt < :nextDayStart

@@ -4,9 +4,7 @@ import co.panha.hibernate.tourmanagement.features.guide.GuideStatus;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 
-/**
- * ទិន្នន័យប្តូរស្ថានភាពមគ្គុទ្ទេសក៍ — UC3.5។
- */
+// UC3.5 - change guide status request.
 public record UpdateGuideStatusRequest(
 
         @NotNull(message = "Status is required")

@@ -18,17 +18,7 @@ import lombok.Setter;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-/**
- * ការទូទាត់មួយចលនា — F8។
- *
- * <p><b>តារាងនេះជាសៀវភៅកត់ត្រា (ledger) មិនមែនជាស្ថានភាពទេ</b>៖ ជួរនីមួយៗជាព្រឹត្តិការណ៍
- * ដែលកើតឡើងហើយ ហើយ<b>មិនត្រូវកែ</b>បន្ទាប់ពីបញ្ជាក់។ ចំនួនប្រាក់សរុបគណនាដោយបូកជួរ
- * មិនមែនដោយរក្សាទុកលេខតែមួយទេ — {@code booking.paidAmount} គ្រាន់តែជាតម្លៃគណនាទុកមុន
- * ដែលធ្វើសមកាលកម្មពីតារាងនេះ ({@code syncBookingPaidAmount})។
- *
- * <p><b>គ្មានការតភ្ជាប់ទៅ payment gateway</b> — {@code transactionId} ជាលេខយោងដែល
- * អតិថិជនវាយដាក់ ឬចម្លងពីកម្មវិធីធនាគារ។
- */
+// Ledger entry: rows are events and must not be edited after verification; no real gateway.
 @Getter
 @Setter
 @Entity
@@ -43,7 +33,7 @@ import java.time.LocalDateTime;
 )
 public class Payment extends BaseEntity {
 
-    /** លេខយោងសាធារណៈ — {@code PM-20260912-0001}។ ប្រើជាកូនសោលើ API ជំនួស {@code id}។ */
+    // Public reference like PM-20260912-0001; used as the API key instead of id.
     @Column(unique = true, nullable = false, length = 40)
     private String referenceNo;
 
@@ -59,7 +49,7 @@ public class Payment extends BaseEntity {
     @Column(nullable = false, length = 20)
     private PaymentMethod method;
 
-    /** តែងតែជាចំនួន<b>វិជ្ជមាន</b> — ទិសកំណត់ដោយ {@link #type} មិនមែនដោយសញ្ញាទេ។ */
+    // Always positive; direction is determined by type, not sign.
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal amount;
 
@@ -70,11 +60,11 @@ public class Payment extends BaseEntity {
     @Column(nullable = false, length = 20)
     private PaymentStatus status;
 
-    /** លេខយោងពីធនាគារ ឬ gateway — unique ដើម្បីការពារការកត់ត្រាដដែលពីរដង។ */
+    // Bank or gateway reference; unique to prevent duplicate records.
     @Column(length = 120)
     private String transactionId;
 
-    /** URL រូបភាពវិក្កយបត្រ — ចាំបាច់សម្រាប់ {@code BANK_TRANSFER} (BR5)។ */
+    // Receipt image URL; required for BANK_TRANSFER (BR5).
     @Column(length = 255)
     private String receiptUrl;
 
@@ -89,11 +79,11 @@ public class Payment extends BaseEntity {
 
     private LocalDateTime verifiedAt;
 
-    /** អ្នកបញ្ជាក់ — {@code username} របស់ ADMIN ឬ {@code "SYSTEM"} សម្រាប់ការបង់អនឡាញ។ */
+    // ADMIN username, or "SYSTEM" for online payments.
     @Column(length = 60)
     private String verifiedBy;
 
-    /** ការទូទាត់នេះរាប់ចូល {@code paidAmount} ឬអត់។ */
+    // Whether this payment counts toward paidAmount.
     public boolean isIncome() {
         return type != PaymentType.REFUND;
     }

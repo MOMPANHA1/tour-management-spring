@@ -26,17 +26,12 @@ public interface ScheduleRepository extends JpaRepository<TourSchedule, Long> {
     List<TourSchedule> findByStatusAndReturnDateBeforeAndIsDeletedFalse(
             ScheduleStatus status, LocalDate date);
 
-    /**
-     * ចាក់សោជួរពេញរយៈពេល transaction — ការពារ race condition ពេលកក់ (F7)។
-     *
-     * <p>ពេលមនុស្ស ១០ នាក់ចុច [កក់] ព្រមគ្នាលើកៅអី ៨ គេត្រូវរង់ចាំគ្នាម្នាក់ម្តង
-     * ដូច្នេះការរាប់កៅអីមិនអាចអានទិន្នន័យចាស់ទេ។
-     */
+    // Pessimistic lock for the transaction so concurrent bookings cannot read stale seat counts (F7).
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT s FROM TourSchedule s WHERE s.id = :id AND s.isDeleted = false")
     Optional<TourSchedule> findByIdForUpdate(@Param("id") Long id);
 
-    /** UC5.2 — កាលវិភាគដែលនៅបើកទទួលការកក់សម្រាប់ Tour មួយ។ */
+    // UC5.2: schedules still open for booking for one tour.
     @EntityGraph(attributePaths = {"tour", "guide"})
     @Query("""
             SELECT s FROM TourSchedule s
@@ -50,7 +45,7 @@ public interface ScheduleRepository extends JpaRepository<TourSchedule, Long> {
     List<TourSchedule> findOpenSchedulesByTour(@Param("tourId") Long tourId,
                                                @Param("fromDate") LocalDate fromDate);
 
-    /** ប្រើដោយ F4 — Tour បើកលក់បានលុះត្រាតែមានកាលវិភាគបើកយ៉ាងតិច ១។ */
+    // Used by F4: a tour can be published only if it has at least one open schedule.
     @Query("""
             SELECT COUNT(s) FROM TourSchedule s
             WHERE s.tour.id = :tourId
@@ -61,7 +56,7 @@ public interface ScheduleRepository extends JpaRepository<TourSchedule, Long> {
             """)
     long countOpenSchedules(@Param("tourId") Long tourId, @Param("fromDate") LocalDate fromDate);
 
-    /** ប្រើដោយ F3 — មគ្គុទ្ទេសក៍ដាក់ INACTIVE មិនបានបើនៅមានកាលវិភាគអនាគត។ */
+    // Used by F3: a guide cannot be set INACTIVE while future schedules remain.
     @Query("""
             SELECT COUNT(s) FROM TourSchedule s
             WHERE s.guide.id = :guideId
@@ -72,14 +67,10 @@ public interface ScheduleRepository extends JpaRepository<TourSchedule, Long> {
             """)
     long countUpcomingByGuide(@Param("guideId") Long guideId, @Param("fromDate") LocalDate fromDate);
 
-    /** ចំនួនកាលវិភាគសរុបដែលចាត់តាំងឲ្យមគ្គុទ្ទេសក៍ម្នាក់ — ប្រើដោយ F3។ */
+    // Total schedules assigned to one guide (F3).
     long countByGuideIdAndIsDeletedFalse(Long guideId);
 
-    /**
-     * មគ្គុទ្ទេសក៍នេះមានកាលវិភាគជាន់គ្នាក្នុងចន្លោះថ្ងៃនេះឬទេ។
-     *
-     * <p>{@code excludeScheduleId} ប្រើពេលកែកាលវិភាគដែលមានស្រាប់ — កុំឲ្យវាជាន់នឹងខ្លួនឯង។
-     */
+    // True if the guide has an overlapping schedule; excludeScheduleId skips the schedule being edited.
     @Query("""
             SELECT COUNT(s) > 0 FROM TourSchedule s
             WHERE s.guide.id = :guideId
@@ -94,7 +85,7 @@ public interface ScheduleRepository extends JpaRepository<TourSchedule, Long> {
                              @Param("endDate") LocalDate endDate,
                              @Param("excludeScheduleId") Long excludeScheduleId);
 
-    /** ថ្ងៃចេញដំណើរបន្ទាប់របស់ Tour — បំពេញ {@code nextDepartureDate} លើកាត Tour (F4)។ */
+    // Next departure date of a tour, used for nextDepartureDate on tour cards (F4).
     @Query("""
             SELECT MIN(s.departureDate) FROM TourSchedule s
             WHERE s.tour.id = :tourId
@@ -105,7 +96,7 @@ public interface ScheduleRepository extends JpaRepository<TourSchedule, Long> {
             """)
     LocalDate findNextDepartureDate(@Param("tourId") Long tourId, @Param("fromDate") LocalDate fromDate);
 
-    /** ប្រើដោយ F3 UC3.6 — មគ្គុទ្ទេសក៍ដែលរវល់ក្នុងចន្លោះថ្ងៃនេះ។ */
+    // Used by F3 UC3.6: guides busy within the date range.
     @Query("""
             SELECT DISTINCT s.guide.id FROM TourSchedule s
             WHERE s.guide IS NOT NULL

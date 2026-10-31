@@ -29,19 +29,19 @@ public class CategoryServiceImpl implements CategoryService {
     @Transactional
     public CategoryResponse createNew(CreateCategoryRequest request) {
 
-        // ៣. Check Rules
+        // 3. Check rules
         if (categoryRepository.existsByNameIgnoreCaseAndIsDeletedFalse(request.name())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Category name '" + request.name() + "' already exists");
         }
 
-        // ៥. Build
+        // 5. Build
         Category category = categoryMapper.toEntity(request);
         category.setSlug(GenerateUtils.generateUniqueSlug(
                 request.name(), categoryRepository::existsBySlugAndIsDeletedFalse));
         category.setIsDeleted(false);
 
-        // ៦. Save + ៨. Return
+        // 6. Save + 8. Return
         return toResponse(categoryRepository.save(category));
     }
 
@@ -64,7 +64,7 @@ public class CategoryServiceImpl implements CategoryService {
 
         Category category = loadById(id);
 
-        // ពិនិត្យស្ទួន — តែបើឈ្មោះពិតជាប្តូរ
+        // Duplicate check only when the name really changed
         if (request.name() != null && !request.name().equalsIgnoreCase(category.getName())) {
 
             if (categoryRepository.existsByNameIgnoreCaseAndIsDeletedFalse(request.name())) {
@@ -85,7 +85,7 @@ public class CategoryServiceImpl implements CategoryService {
 
         Category category = loadById(id);
 
-        // វិន័យ៖ លុបមិនបានបើនៅមាន Tour សកម្ម
+        // Rule: cannot delete while active tours exist
         long activeTours = tourRepository.countActiveByCategory(category.getId());
         if (activeTours > 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
@@ -96,20 +96,14 @@ public class CategoryServiceImpl implements CategoryService {
         categoryRepository.save(category);
     }
 
-    /** ទាញប្រភេទតាម id ឬបោះ 404 — ប្រើរួមគ្នាដោយ ៣ method។ */
+    // Load a category by id or throw 404; shared by three methods.
     private Category loadById(Long id) {
         return categoryRepository.findByIdAndIsDeletedFalse(id)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Category not found with id = " + id));
     }
 
-    /**
-     * បំពេញ {@code tourCount} ដែលមាននៅក្នុង database មិនមែនក្នុង entity។
-     *
-     * <p><b>ចំណាំអំពីដំណើរការ</b>៖ នៅ {@code findAll} វាបង្កើត count query ១ ក្នុងមួយប្រភេទ
-     * (ទំព័រ ១០ → ១១ query)។ ទទួលយកបានសម្រាប់តារាងប្រភេទដែលតូច (ជាធម្មតាក្រោម ២០ ជួរ)។
-     * បើថ្ងៃក្រោយបញ្ជីនេះធំឡើង សូមប្តូរទៅ query រាប់តែមួយដែល {@code GROUP BY category_id}។
-     */
+    // Fills tourCount from the database; one count query per row, so switch to GROUP BY if the list grows.
     private CategoryResponse toResponse(Category category) {
         return categoryMapper.toResponse(category, tourRepository.countActiveByCategory(category.getId()));
     }

@@ -12,7 +12,7 @@ import java.util.List;
 @Mapper(componentModel = "spring")
 public interface BookingMapper {
 
-    // booking កំណត់ដោយ Booking.addPassenger(); id បំពេញដោយ JPA
+    // booking is set by Booking.addPassenger(); id is filled by JPA
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "booking", ignore = true)
     @Mapping(target = "isLead", expression = "java(Boolean.TRUE.equals(request.isLead()))")
@@ -22,10 +22,7 @@ public interface BookingMapper {
 
     List<PassengerResponse> toPassengerResponses(List<Passenger> passengers);
 
-    /**
-     * {@code customerName} ផ្ញើចូលពី Service — {@code null} សម្រាប់អតិថិជនខ្លួនឯង
-     * ហើយមានតម្លៃតែពេល ADMIN មើល។
-     */
+    // customerName comes from the service: null for the customer's own view, set only for ADMIN.
     @Mapping(target = "tourId", source = "booking.schedule.tour.id")
     @Mapping(target = "tourTitle", source = "booking.schedule.tour.title")
     @Mapping(target = "scheduleId", source = "booking.schedule.id")

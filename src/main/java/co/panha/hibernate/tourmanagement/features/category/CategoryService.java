@@ -5,28 +5,21 @@ import co.panha.hibernate.tourmanagement.features.category.dto.CategoryResponse;
 import co.panha.hibernate.tourmanagement.features.category.dto.CreateCategoryRequest;
 import co.panha.hibernate.tourmanagement.features.category.dto.UpdateCategoryRequest;
 
-/**
- * សេវាកម្មប្រភេទ Tour — F1។
- */
+// Tour category service (F1).
 public interface CategoryService {
 
-    /** UC1.1 — បង្កើតប្រភេទថ្មី។ */
+    // UC1.1 - create a category.
     CategoryResponse createNew(CreateCategoryRequest request);
 
-    /** UC1.2 — បញ្ជីប្រភេទ តម្រៀបតាមឈ្មោះ ក→អ។ */
+    // UC1.2 - list categories sorted by name.
     PageResponse<CategoryResponse> findAll(Integer page, Integer size);
 
-    /** UC1.3 — ប្រភេទមួយតាម id។ */
+    // UC1.3 - get one category by id.
     CategoryResponse findById(Long id);
 
-    /**
-     * UC1.4 — កែប្រភេទ (PATCH)។
-     *
-     * <p>បើ {@code name} ប្តូរ នោះ {@code slug} បង្កើតថ្មីតាម។ URL មិនរងផលប៉ះពាល់ទេ
-     * ព្រោះវាប្រើ {@code id}។
-     */
+    // UC1.4 - PATCH; slug is regenerated when name changes (URLs use id, so they are unaffected).
     CategoryResponse updateById(Long id, UpdateCategoryRequest request);
 
-    /** UC1.5 — លុបប្រភេទ (soft delete)។ */
+    // UC1.5 - soft delete a category.
     void deleteById(Long id);
 }

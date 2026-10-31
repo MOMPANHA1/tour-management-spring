@@ -7,11 +7,7 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
-/**
- * ទិន្នន័យបង្កើតទីតាំងថ្មី — UC2.1។
- *
- * <p>{@code country} ជាជម្រើស — បើទុកទទេប្រព័ន្ធដាក់ {@code "Cambodia"}។
- */
+// UC2.1 - create request; country is optional and defaults to "Cambodia".
 public record CreateDestinationRequest(
 
         @NotBlank(message = "Destination name is required")

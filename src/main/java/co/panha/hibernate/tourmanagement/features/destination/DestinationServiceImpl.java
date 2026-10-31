@@ -61,7 +61,7 @@ public class DestinationServiceImpl implements DestinationService {
 
     @Override
     public DestinationResponse findById(Long id) {
-        // TODO ដំណាក់កាល ៣ (F4 Tour)៖ ប្តូរទៅ DestinationDetailResponse ដែលផ្ទុក tours : List<TourCardResponse>
+        // TODO: phase 3 (F4 Tour) - switch to DestinationDetailResponse carrying tours: List<TourCardResponse>
         return toResponse(loadById(id));
     }
 
@@ -71,7 +71,7 @@ public class DestinationServiceImpl implements DestinationService {
 
         Destination destination = loadById(id);
 
-        // ពិនិត្យស្ទួន — តែបើ name ឬ province ពិតជាប្តូរ
+        // Duplicate check only when name or province really changed
         String newName = (request.name() != null) ? request.name() : destination.getName();
         String newProvince = (request.province() != null) ? request.province() : destination.getProvince();
 
@@ -86,8 +86,7 @@ public class DestinationServiceImpl implements DestinationService {
 
         destinationMapper.updateEntity(request, destination);
 
-        // ពិនិត្យលើ​ស្ថានភាព​ចុងក្រោយ មិនមែនលើ request ទេ — ព្រោះ PATCH អាចផ្ញើមកតែ latitude
-        // ហើយបន្សល់ទុកជួរដែលមាន latitude តែគ្មាន longitude។
+        // Validate the final state, not the request: a PATCH may send only latitude onto a row without longitude.
         requireCoordinatePair(destination.getLatitude(), destination.getLongitude());
 
         return toResponse(destinationRepository.save(destination));
@@ -99,7 +98,7 @@ public class DestinationServiceImpl implements DestinationService {
 
         Destination destination = loadById(id);
 
-        // វិន័យ៖ លុបមិនបានបើនៅមាន Tour ភ្ជាប់នឹងទីតាំងនេះ
+        // Rule: cannot delete while tours are linked to this destination
         long activeTours = tourRepository.countActiveByDestination(destination.getId());
         if (activeTours > 0) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
@@ -110,7 +109,7 @@ public class DestinationServiceImpl implements DestinationService {
         destinationRepository.save(destination);
     }
 
-    // ---------- ជំនួយខាងក្នុង ----------
+    // ---------- internal helpers ----------
 
     private Destination loadById(Long id) {
         return destinationRepository.findByIdAndIsDeletedFalse(id)
@@ -118,7 +117,7 @@ public class DestinationServiceImpl implements DestinationService {
                         "Destination not found with id = " + id));
     }
 
-    /** កូអរដោនេត្រូវមានទាំងគូ ឬទទេទាំងគូ — ចំណុចតែមួយគ្មានន័យលើផែនទី។ */
+    // Coordinates must be both set or both empty; a single value is meaningless on a map.
     private void requireCoordinatePair(BigDecimal latitude, BigDecimal longitude) {
         if ((latitude == null) != (longitude == null)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -130,7 +129,7 @@ public class DestinationServiceImpl implements DestinationService {
         return (country == null || country.isBlank()) ? DEFAULT_COUNTRY : country.trim();
     }
 
-    /** បំពេញ {@code tourCount} — ដូច {@code CategoryServiceImpl.toResponse} ដែរ។ */
+    // Fills tourCount, same as CategoryServiceImpl.toResponse.
     private DestinationResponse toResponse(Destination destination) {
         return destinationMapper.toResponse(destination,
                 tourRepository.countActiveByDestination(destination.getId()));

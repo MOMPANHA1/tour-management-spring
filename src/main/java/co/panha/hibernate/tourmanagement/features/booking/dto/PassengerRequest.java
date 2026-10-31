@@ -8,7 +8,6 @@ import jakarta.validation.constraints.Size;
 
 import java.time.LocalDate;
 
-/** អ្នកដំណើរម្នាក់ក្នុងសំណើកក់។ */
 public record PassengerRequest(
 
         @NotBlank(message = "Passenger full name is required")
@@ -24,7 +23,7 @@ public record PassengerRequest(
         @Size(max = 40, message = "Passport number cannot exceed 40 characters")
         String passportNo,
 
-        /** ទុក {@code null} បាន — Service ចាត់ទុកជា {@code false}។ */
+        // May be null; the service treats null as false.
         Boolean isLead
 ) {
 }

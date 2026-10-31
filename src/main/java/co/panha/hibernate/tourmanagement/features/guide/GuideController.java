@@ -24,11 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDate;
 import java.util.List;
 
-/**
- * F3 — មគ្គុទ្ទេសក៍។
- *
- * <p>សិទ្ធិ (ADMIN សម្រាប់ភាគច្រើន) នឹងអនុវត្តនៅដំណាក់កាល ៥ ពេលដាក់ Spring Security។
- */
+// F3 - Guides; ADMIN-only rules are enforced in phase 5 (Spring Security).
 @Tag(name = "Guide")
 @RestController
 @RequiredArgsConstructor
@@ -37,12 +33,7 @@ public class GuideController {
 
     private final GuideService guideService;
 
-    /**
-     * UC3.6 — មគ្គុទ្ទេសក៍ទំនេរក្នុងចន្លោះថ្ងៃ។
-     *
-     * <p>ត្រូវប្រកាស<b>មុន</b> {@code @GetMapping("/{id}")} មិនចាំបាច់ទេ (Spring ផ្គូផ្គងផ្លូវ
-     * ជាក់លាក់មុនអថេរ) តែដាក់ជិតគ្នាឲ្យអានងាយ។
-     */
+    // UC3.6 - guides available in a date range; kept next to /{id} for readability.
     @GetMapping("/available")
     public List<GuideResponse> findAvailable(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,

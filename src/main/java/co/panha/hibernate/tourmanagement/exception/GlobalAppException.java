@@ -24,26 +24,18 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-/**
- * ការគ្រប់គ្រងកំហុសសកល — បម្លែងរាល់ exception ទៅជា {@link ApiErrorResponse} ដែលមានរូបរាងតែមួយ។
- *
- * <p>គោលការណ៍៖ អ្នកប្រើមិនគួរឃើញ stack trace ឬសារឆៅពី framework ទេ — គ្រប់សារ API ត្រូវជាភាសាអង់គ្លេស
- * (ឯ javadoc និងមតិយោបល់ក្នុងកូដនៅជាភាសាខ្មែរ)។
- */
+// Global handler mapping every exception to a uniform ApiErrorResponse; API messages are English.
 @Slf4j
 @RestControllerAdvice
 public class GlobalAppException {
 
-    /**
-     * កំហុស validation ពី {@code @Valid} — ប្រមូលរាល់ field ដែលខុសជាមួយគ្នា
-     * ដើម្បីឲ្យ frontend បង្ហាញក្រោម input នីមួយៗបានតែម្តង។
-     */
+    // Bean validation errors: collect all invalid fields so the frontend can show them at once.
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiErrorResponse> handleValidation(MethodArgumentNotValidException ex,
                                                             HttpServletRequest request) {
         Map<String, String> fieldErrors = new LinkedHashMap<>();
         for (FieldError fieldError : ex.getBindingResult().getFieldErrors()) {
-            // រក្សាសារដំបូងនៃ field នីមួយៗ — កុំឲ្យសារទី ២ ជាន់សារទី ១
+            // Keep the first message per field.
             fieldErrors.putIfAbsent(fieldError.getField(), fieldError.getDefaultMessage());
         }
 
@@ -51,13 +43,7 @@ public class GlobalAppException {
                 "Invalid request payload", request, fieldErrors);
     }
 
-    /**
-     * Body ដែលអាន​មិន​បាន — JSON ខូចទម្រង់, enum មិនស្គាល់, ឬប្រភេទតម្លៃខុស។
-     *
-     * <p>បើគ្មាន handler នេះ ករណីសាមញ្ញដូចជា {@code "gender":"UNKNOWN"} នឹងក្លាយជា <b>500</b>
-     * ទាំងដែលវាជាកំហុសរបស់ client។ Spring មិនបម្លែងវាដោយខ្លួនឯងទេ ព្រោះ
-     * {@code HttpMessageNotReadableException} មិនមែនជា {@code ErrorResponse}។
-     */
+    // Unreadable body (bad JSON, unknown enum, wrong type) is a client error (400), not 500.
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiErrorResponse> handleNotReadable(HttpMessageNotReadableException ex,
                                                               HttpServletRequest request) {
@@ -79,7 +65,7 @@ public class GlobalAppException {
                 "Malformed request body", request, fieldErrors);
     }
 
-    /** Query param ឬ path variable ដែលបម្លែងមិនបាន — ឧ. {@code ?page=abc} ឬ {@code ?status=BOGUS}។ */
+    // Unconvertible query param or path variable, e.g. ?page=abc.
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ApiErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex,
                                                                HttpServletRequest request) {
@@ -94,7 +80,7 @@ public class GlobalAppException {
                 Map.of(ex.getName(), "Invalid value — " + allowed));
     }
 
-    /** កំហុសដែល Service បោះដោយចេតនា — ផ្ទុកលេខកូដ និងសារជាភាសាអង់គ្លេសរួចស្រេច។ */
+    // Deliberate service errors carry their status code and English message.
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ApiErrorResponse> handleResponseStatus(ResponseStatusException ex,
                                                                  HttpServletRequest request) {
@@ -102,12 +88,7 @@ public class GlobalAppException {
         return build(status, reasonPhrase(status), ex.getReason(), request, null);
     }
 
-    /**
-     * ការប៉ះទង្គិច constraint នៅកម្រិត database (unique, foreign key)។
-     *
-     * <p>ជាធម្មតា Service គួរចាប់បាន<b>មុន</b>ដល់ត្រង់នេះ (ឧ. {@code existsByName} មុន save)។
-     * ការមកដល់ទីនេះមានន័យថាមាន race condition ឬខ្វះការពិនិត្យ — ដូច្នេះកត់ត្រាទុកដើម្បីពិនិត្យក្រោយ។
-     */
+    // DB constraint violation; reaching here means a race condition or a missing service check, so log it.
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiErrorResponse> handleDataIntegrity(DataIntegrityViolationException ex,
                                                                 HttpServletRequest request) {
@@ -117,7 +98,7 @@ public class GlobalAppException {
                 "Request conflicts with existing data", request, null);
     }
 
-    /** មនុស្ស ២ នាក់កែទិន្នន័យដដែលព្រមគ្នា — កើតលើ {@code Booking} ដែលមាន {@code @Version}។ */
+    // Concurrent edit of the same row; applies to Booking (@Version).
     @ExceptionHandler(OptimisticLockingFailureException.class)
     public ResponseEntity<ApiErrorResponse> handleOptimisticLock(OptimisticLockingFailureException ex,
                                                                  HttpServletRequest request) {
@@ -127,17 +108,9 @@ public class GlobalAppException {
                 "The record was modified by someone else — please retry", request, null);
     }
 
-    // TODO ដំណាក់កាល ៥៖ បន្ថែម handler សម្រាប់ AccessDeniedException -> 403
-    //   (ត្រូវការ spring-boot-starter-security ដែលមិនទាន់ដាក់ក្នុង build.gradle)
+    // TODO: phase 5, add a handler for AccessDeniedException -> 403 (needs spring-boot-starter-security).
 
-    /**
-     * កំហុសដែលមិនបានរំពឹងទុក។
-     *
-     * <p>ពិនិត្យ {@link ErrorResponse} ជាមុនសិន ព្រោះ Spring បោះ exception ស្តង់ដារជាច្រើន
-     * ({@code NoResourceFoundException} 404, {@code HttpRequestMethodNotSupportedException} 405,
-     * {@code HttpMessageNotReadableException} 400) ដែលមានលេខកូដត្រឹមត្រូវរួចហើយ — បើមិនពិនិត្យ
-     * ពួកវានឹងក្លាយជា 500 ទាំងអស់ ហើយ log នឹងពេញដោយកំហុសក្លែងក្លាយ។
-     */
+    // Unexpected errors; ErrorResponse is checked first so standard Spring exceptions keep their own status.
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> handleUnexpected(Exception ex, HttpServletRequest request) {
         if (ex instanceof ErrorResponse errorResponse) {
@@ -151,7 +124,7 @@ public class GlobalAppException {
                 "An internal error occurred — please contact the administrator", request, null);
     }
 
-    // ---------- ជំនួយខាងក្នុង ----------
+    // ---------- internal helpers ----------
 
     private ResponseEntity<ApiErrorResponse> build(HttpStatusCode status, String error, String message,
                                                    HttpServletRequest request, Map<String, String> fieldErrors) {
@@ -165,31 +138,20 @@ public class GlobalAppException {
         return ResponseEntity.status(status).body(body);
     }
 
-    /**
-     * ស្វែងរក {@link InvalidFormatException} តាមខ្សែសង្វាក់ cause។
-     *
-     * <p>ការពិនិត្យត្រឹម {@code getCause()} មិនគ្រប់គ្រាន់ទេ — ពេលបម្លែងចូល {@code record}
-     * Jackson រុំកំហុសក្នុង {@code ValueInstantiationException} មួយស្រទាប់ទៀត។
-     */
+    // Finds an InvalidFormatException in the cause chain (records wrap it in ValueInstantiationException).
     private InvalidFormatException findInvalidFormat(Throwable throwable) {
         for (Throwable current = throwable; current != null; current = current.getCause()) {
             if (current instanceof InvalidFormatException found) {
                 return found;
             }
             if (current.getCause() == current) {
-                break;                      // ការពារ loop មិនចេះចប់
+                break;                      // guard against endless loop
             }
         }
         return null;
     }
 
-    /**
-     * ផ្លូវ field ក្នុង JSON ដែលបង្កកំហុស — ឧ. {@code "gender"} ឬ {@code "passengers[0].gender"}។
-     *
-     * <p>Spring Boot 4 ប្រើ <b>Jackson 3</b> ({@code tools.jackson.*}) មិនមែន Jackson 2
-     * ({@code com.fasterxml.jackson.*}) ទេ — ទោះបី Jackson 2 នៅលើ classpath ក៏ដោយ។
-     * ការប្រើថ្នាក់ខុស package នឹង compile ជាប់ តែ {@code instanceof} នឹងមិនដែលត្រូវ។
-     */
+    // JSON path of the failing field; uses Jackson 3 (tools.jackson.*), which Spring Boot 4 requires.
     private String fieldPath(JacksonException ex) {
         String path = ex.getPath().stream()
                 .map(JacksonException.Reference::getPropertyName)

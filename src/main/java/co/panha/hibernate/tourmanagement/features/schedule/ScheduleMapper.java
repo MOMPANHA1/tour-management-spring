@@ -6,12 +6,7 @@ import org.mapstruct.Mapping;
 
 import java.math.BigDecimal;
 
-/**
- * បម្លែង {@link TourSchedule} → DTO។
- *
- * <p>{@code bookedSeats}, {@code availableSeats} និង {@code effectivePrice} បញ្ជូនចូលជា
- * អាគុយម៉ង់ ព្រោះវាត្រូវការការរាប់ក្នុង database ដែល mapper មិនធ្វើ។
- */
+// Seat counts and effective price are passed in because they need database counts the mapper cannot do.
 @Mapper(componentModel = "spring")
 public interface ScheduleMapper {
 

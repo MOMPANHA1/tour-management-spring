@@ -13,11 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDate;
 import java.util.List;
 
-/**
- * UC5.2 — កាលវិភាគរបស់ Tour មួយ (សាធារណៈ)។
- *
- * <p>ដាក់ដាច់ពី {@code ScheduleController} ព្រោះ base path ខុសគ្នា — វាជាធនធានរងរបស់ Tour។
- */
+// UC5.2: public schedules of a tour; separate controller because the base path differs.
 @Tag(name = "Schedule")
 @RestController
 @RequiredArgsConstructor

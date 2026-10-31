@@ -27,11 +27,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
-/**
- * F4 — កញ្ចប់ដំណើរកម្សាន្ត។
- *
- * <p>សិទ្ធិ (ADMIN សម្រាប់ POST/PATCH/DELETE) នឹងអនុវត្តនៅដំណាក់កាល ៥ ពេលដាក់ Spring Security។
- */
+// F4 tour endpoints; ADMIN-only POST/PATCH/DELETE is enforced in the Spring Security phase.
 @Tag(name = "Tour")
 @RestController
 @RequiredArgsConstructor
@@ -46,12 +42,7 @@ public class TourController {
         return tourService.createNew(request);
     }
 
-    /**
-     * UC4.2 — ស្វែងរក។
-     *
-     * <p>ប៉ារ៉ាម៉ែត្រសរសេរដាច់ៗជំនួសឲ្យ {@code @ModelAttribute TourFilter} ដើម្បីឲ្យ Swagger
-     * បង្ហាញវាម្នាក់ៗ ហើយឲ្យការបម្លែងប្រភេទ (enum, date, decimal) ចេញជា 400 ច្បាស់លាស់។
-     */
+    // UC4.2: search with separate params (not @ModelAttribute) so Swagger lists each and type errors return clear 400s.
     @GetMapping
     public PageResponse<TourCardResponse> search(
             @RequestParam(required = false) String keyword,

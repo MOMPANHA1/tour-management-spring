@@ -14,15 +14,10 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
 
     Optional<Customer> findByIdAndIsDeletedFalse(Long id);
 
-    /** ស្ពានពី JWT មកតារាងនេះ — ប្រើក្នុង {@code /me}។ */
+    // Bridge from the JWT to this table; used by /me.
     Optional<Customer> findByKeycloakIdAndIsDeletedFalse(String keycloakId);
 
-    /**
-     * ពិនិត្យស្ទួន <b>ដោយមិនច្រោះ {@code isDeleted}</b> — ដូចលំនាំ {@code GuideRepository}។
-     *
-     * <p>អតិថិជនដែលលុប (soft) នៅតែកាន់កាប់ unique constraint។ បើច្រោះចេញ ការចុះឈ្មោះថ្មីនឹង
-     * បរាជ័យដោយ {@code DataIntegrityViolationException} (សារទូទៅ) ជំនួសឲ្យសារច្បាស់លាស់។
-     */
+    // Duplicate check intentionally ignores isDeleted: soft-deleted rows still hold the unique constraints.
     boolean existsByUsername(String username);
 
     boolean existsByEmail(String email);
@@ -33,7 +28,7 @@ public interface CustomerRepository extends JpaRepository<Customer, Long> {
 
     Page<Customer> findAllByStatusAndIsDeletedFalse(CustomerStatus status, Pageable pageable);
 
-    /** UC6.4 — ស្វែងរកតាមឈ្មោះ អ៊ីមែល ឬលេខទូរស័ព្ទ។ */
+    // UC6.4: search by name, email or phone.
     @Query("""
             SELECT c FROM Customer c
             WHERE c.isDeleted = false

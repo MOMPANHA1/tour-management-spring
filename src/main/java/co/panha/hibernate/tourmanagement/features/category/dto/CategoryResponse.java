@@ -1,12 +1,6 @@
 package co.panha.hibernate.tourmanagement.features.category.dto;
 
-/**
- * ទិន្នន័យប្រភេទដែលត្រឡប់ទៅ client។
- *
- * <p>{@code id} គឺជាលេខ auto-increment របស់ database ហើយជាអាសយដ្ឋានលើ API។
- *
- * @param tourCount ចំនួន Tour សកម្ម (មិនរាប់ Tour ដែលលុប) ក្នុងប្រភេទនេះ។
- */
+// Category data returned to the client; tourCount is the number of active tours.
 public record CategoryResponse(
         Long id,
         String name,

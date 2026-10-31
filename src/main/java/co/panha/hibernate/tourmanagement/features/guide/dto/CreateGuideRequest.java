@@ -12,11 +12,7 @@ import jakarta.validation.constraints.Size;
 
 import java.util.Set;
 
-/**
- * ទិន្នន័យបង្កើតមគ្គុទ្ទេសក៍ថ្មី — UC3.1។
- *
- * <p>{@code code} និង {@code status} មិនទទួលពី client — ប្រព័ន្ធកំណត់ ({@code GD-0001}, {@code ACTIVE})។
- */
+// UC3.1 - create request; code and status are set by the system (GD-0001, ACTIVE).
 public record CreateGuideRequest(
 
         @NotBlank(message = "Full name is required")

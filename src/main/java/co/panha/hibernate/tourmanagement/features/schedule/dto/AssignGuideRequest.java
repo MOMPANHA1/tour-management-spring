@@ -2,9 +2,7 @@ package co.panha.hibernate.tourmanagement.features.schedule.dto;
 
 import jakarta.validation.constraints.NotNull;
 
-/**
- * ចាត់តាំងមគ្គុទ្ទេសក៍ទៅកាលវិភាគ — UC5.4។
- */
+// UC5.4: assign a guide to a schedule.
 public record AssignGuideRequest(
 
         @NotNull(message = "Guide is required")

@@ -13,19 +13,7 @@ import lombok.Setter;
 
 import java.time.LocalDate;
 
-/**
- * អតិថិជន — F6។
- *
- * <p><b>គ្មាន column {@code password}</b> — ការផ្ទៀងផ្ទាត់អត្តសញ្ញាណធ្វើដោយ Keycloak។
- * តារាងនេះកាន់តែប្រវត្តិរូប (profile) ប៉ុណ្ណោះ។
- *
- * <p><b>ស្ពានភ្ជាប់គឺ {@link #keycloakId}</b> មិនមែន {@link #username} ទេ — ព្រោះ username
- * អាចប្តូរបានក្នុង Keycloak តែ {@code sub} (UUID) មិនប្តូរជារៀងរហូត។ បើប្រើ username ជាស្ពាន
- * នោះអតិថិជនប្តូរឈ្មោះម្តង គឺបាត់ទំនាក់ទំនងនឹងការកក់ទាំងអស់។
- *
- * <p>រក្សា {@code Long id} ពី {@code BaseEntity} ដដែល ដូច្នេះ FK {@code BIGINT} ក្នុង
- * {@code bookings} និង {@code reviews} មិនចាំបាច់ប្តូរទេ។
- */
+// F6 customer profile; no password column (Keycloak authenticates) and keycloakId (the sub UUID) links to the user.
 @Getter
 @Setter
 @Entity
@@ -33,7 +21,7 @@ import java.time.LocalDate;
 @Table(name = "customers")
 public class Customer extends BaseEntity {
 
-    /** Keycloak User ID ({@code sub} claim) — UUID ប្រវែង ៣៦ តួ។ */
+    // Keycloak user ID (sub claim), a 36-char UUID; stable unlike username.
     @Column(unique = true, nullable = false, length = 36)
     private String keycloakId;
 
@@ -58,7 +46,7 @@ public class Customer extends BaseEntity {
     @Column(length = 80)
     private String nationality;
 
-    /** លេខលិខិតឆ្លងដែន — ទិន្នន័យរសើប មិនត្រឡប់ក្នុង {@code CustomerResponse} ទេ។ */
+    // Sensitive; never returned in CustomerResponse.
     @Column(length = 40)
     private String passportNo;
 
@@ -72,6 +60,5 @@ public class Customer extends BaseEntity {
     @Column(length = 20)
     private CustomerStatus status;
 
-    // ចំណាំ៖ គ្មាន @OneToMany ទៅ Booking ឬ Review ទេ — ការរាប់ធ្វើដោយ repository
-    //   ដូចលំនាំ Guide ដែរ (មើល CustomerServiceImpl.toResponseWithStats)។
+    // No @OneToMany to Booking or Review; counts are done in the repository (see CustomerServiceImpl.toResponseWithStats).
 }

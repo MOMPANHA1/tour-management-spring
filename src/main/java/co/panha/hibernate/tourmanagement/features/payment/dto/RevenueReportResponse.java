@@ -6,12 +6,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.Map;
 
-/**
- * របាយការណ៍ចំណូល — UC8.6។
- *
- * <p>រាប់តែការទូទាត់ស្ថានភាព {@code VERIFIED} ប៉ុណ្ណោះ — ការផ្ទេរដែលមិនទាន់ពិនិត្យ
- * មិនមែនជាចំណូលពិតទេ។
- */
+// UC8.6 revenue report; counts only VERIFIED payments.
 public record RevenueReportResponse(
         LocalDate fromDate,
         LocalDate toDate,

@@ -8,12 +8,7 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
-/**
- * សំណើទូទាត់ — UC8.1។
- *
- * <p>{@code type} មិនអាចជា {@code REFUND} ទេ — ការសងប្រាក់វិញប្រើ endpoint ដាច់ដោយឡែក
- * ដែលតម្រូវឲ្យមានសិទ្ធិ ADMIN។
- */
+// UC8.1 payment request; type cannot be REFUND (refunds use an ADMIN-only endpoint).
 public record CreatePaymentRequest(
 
         @NotNull(message = "Payment type is required")

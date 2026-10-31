@@ -1,14 +1,6 @@
 package co.panha.hibernate.tourmanagement.features.guide;
 
-/**
- * ស្ថានភាពមគ្គុទ្ទេសក៍។
- *
- * <ul>
- *   <li>{@code ACTIVE} — ទទួលការចាត់តាំងបាន</li>
- *   <li>{@code ON_LEAVE} — សម្រាកបណ្តោះអាសន្ន</li>
- *   <li>{@code INACTIVE} — ឈប់ធ្វើការ (ដាក់មិនបានបើនៅមានកាលវិភាគអនាគត)</li>
- * </ul>
- */
+// Guide status: ACTIVE can be assigned, ON_LEAVE is temporary, INACTIVE has left (blocked if future schedules).
 public enum GuideStatus {
     ACTIVE,
     ON_LEAVE,

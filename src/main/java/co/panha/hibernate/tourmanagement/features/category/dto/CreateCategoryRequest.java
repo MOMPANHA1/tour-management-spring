@@ -3,11 +3,7 @@ package co.panha.hibernate.tourmanagement.features.category.dto;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
-/**
- * ទិន្នន័យបង្កើតប្រភេទថ្មី — UC1.1។
- *
- * <p>{@code slug} មិនទទួលពី client ទេ — ប្រព័ន្ធបង្កើតពី {@code name}។
- */
+// UC1.1 - create request; slug is generated from name, not accepted from the client.
 public record CreateCategoryRequest(
 
         @NotBlank(message = "Category name is required")

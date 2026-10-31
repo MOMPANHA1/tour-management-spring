@@ -18,9 +18,7 @@ import lombok.Setter;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
-/**
- * មគ្គុទ្ទេសក៍ទេសចរណ៍។
- */
+// Tour guide.
 @Getter
 @Setter
 @Entity
@@ -28,7 +26,7 @@ import java.util.Set;
 @Table(name = "guides")
 public class Guide extends BaseEntity {
 
-    /** លេខកូដសាធារណៈ — {@code GD-0001}។ */
+    // Public code such as GD-0001.
     @Column(unique = true, nullable = false, length = 20)
     private String code;
 
@@ -45,12 +43,7 @@ public class Guide extends BaseEntity {
     @Column(unique = true, length = 120)
     private String email;
 
-    /**
-     * ភាសាដែលនិយាយបាន — {@code ["KH", "EN", "ZH"]}។
-     *
-     * <p>ដាក់ឈ្មោះតារាងច្បាស់លាស់ជំនួសឲ្យទុកឲ្យ Hibernate ដាក់លំនាំដើម ដើម្បីកុំឲ្យឈ្មោះប្រែប្រួល
-     * ពេលប្តូរ version។ {@code EAGER} ព្រោះបញ្ជីភាសាតូច ហើយត្រូវបង្ហាញជានិច្ចក្នុង response។
-     */
+    // Spoken languages; explicit table name keeps it stable across versions; EAGER as the list is small and always returned.
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(
             name = "guide_languages",
@@ -71,6 +64,5 @@ public class Guide extends BaseEntity {
     @Column(length = 20)
     private GuideStatus status;
 
-    // ចំណាំ៖ គ្មាន @OneToMany ទៅ TourSchedule ទេ — ការរាប់ធ្វើដោយ
-    //   ScheduleRepository.countByGuideIdAndIsDeletedFalse()។
+    // No @OneToMany to TourSchedule: counts come from ScheduleRepository.countByGuideIdAndIsDeletedFalse().
 }

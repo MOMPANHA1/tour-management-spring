@@ -1,7 +1,2 @@
-/**
- * F9 — ការវាយតម្លៃ (Review)។
- *
- * <p>ការវាយតម្លៃភ្ជាប់នឹង {@code Booking} មួយទល់មួយ — ដូច្នេះមានតែអ្នកដែលធ្លាប់ទៅដំណើរពិត
- * ប៉ុណ្ណោះដែលវាយតម្លៃបាន។
- */
+// F9 - reviews; one review per booking, so only real travelers can review.
 package co.panha.hibernate.tourmanagement.features.review;

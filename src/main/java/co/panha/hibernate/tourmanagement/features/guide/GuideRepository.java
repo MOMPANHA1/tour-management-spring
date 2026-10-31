@@ -14,12 +14,7 @@ public interface GuideRepository extends JpaRepository<Guide, Long> {
 
     Optional<Guide> findByIdAndIsDeletedFalse(Long id);
 
-    /**
-     * ពិនិត្យលេខទូរស័ព្ទ <b>ដោយមិនច្រោះ {@code isDeleted}</b>។
-     *
-     * <p>មគ្គុទ្ទេសក៍ដែលលុប (soft) នៅតែកាន់កាប់ unique constraint។ បើច្រោះចេញ ការបង្កើតថ្មីនឹង
-     * បរាជ័យដោយ {@code DataIntegrityViolationException} (409 សារទូទៅ) ជំនួសឲ្យសារខ្មែរច្បាស់លាស់។
-     */
+    // Does not filter isDeleted: soft-deleted guides still hold the unique phone, so a clear 409 message is needed.
     boolean existsByPhoneNumber(String phoneNumber);
 
     boolean existsByEmail(String email);
@@ -32,7 +27,7 @@ public interface GuideRepository extends JpaRepository<Guide, Long> {
 
     long countByIsDeletedFalse();
 
-    /** UC3.6 — មគ្គុទ្ទេសក៍សកម្មដែលមិននៅក្នុងបញ្ជីរវល់។ */
+    // UC3.6 - active guides not in the busy list.
     List<Guide> findAllByStatusAndIsDeletedFalseAndIdNotIn(GuideStatus status, Collection<Long> busyIds);
 
     List<Guide> findAllByStatusAndIsDeletedFalse(GuideStatus status);

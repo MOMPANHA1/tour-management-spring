@@ -21,79 +21,68 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/**
- * ដំណាក់កាល ៥ — សិទ្ធិចូលប្រើ API។
- *
- * <p>រចនាបថ៖ REST ឥតរក្សាស្ថានភាព (stateless) — គ្មាន session គ្មាន cookie។ រាល់សំណើត្រូវផ្ទុក
- * {@code Authorization: Bearer <JWT>} ដែល Keycloak ចេញឲ្យ។
- *
- * <p><b>គោលការណ៍រួម</b>៖ អ្វីដែលភ្ញៀវត្រូវឃើញមុន login (បញ្ជី Tour · ប្រភេទ · ទីតាំង · កាលវិភាគ)
- * គឺសាធារណៈ។ រាល់ការ<b>កែប្រែ</b>ទិន្នន័យមេជារបស់ {@code ADMIN}។
- */
+// Phase 5: stateless REST security; pre-login browsing is public, data changes are ADMIN only.
 @Configuration
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    /** ផ្លូវឯកសារ API — ត្រូវបើកសេរី បើមិនដូច្នេះទេ Swagger UI ផ្ទុកមិនរួច។ */
+    // API docs paths must be open or Swagger UI cannot load.
     private static final String[] DOCS_WHITELIST = {
             "/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**"
     };
 
-    /** ត្រូវដូចនឹង {@code keycloak.client-id} — ប្រើសម្រាប់អាន client role ពី {@code resource_access}។ */
+    // Must match keycloak.client-id; used to read client roles from resource_access.
     @Value("${keycloak.client-id}")
     private String clientId;
 
     @Bean
     public SecurityFilterChain apiFilterChain(HttpSecurity http) throws Exception {
 
-        // ១. REST — គ្មាន session
+        // 1. REST: no session
         http.sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
-        // ២. សិទ្ធិតាម endpoint
-        //    លំដាប់សំខាន់ណាស់ — Spring យក matcher ដំបូងដែលត្រូវគ្នា។ ដូច្នេះច្បាប់សាធារណៈ
-        //    (ជាក់លាក់ជាង) ត្រូវប្រកាសមុនច្បាប់ ADMIN (ទូលំទូលាយជាង)។
+        // 2. Per-endpoint rules; order matters (first match wins), so specific public rules go before broad ADMIN rules.
         http.authorizeHttpRequests(request -> request
                 .requestMatchers(DOCS_WHITELIST).permitAll()
 
-                // ចុះឈ្មោះ — មិនទាន់មានគណនីទេ ដូច្នេះត្រូវសាធារណៈ (F6 នឹងបង្កើត endpoint នេះ)
+                // Registration is public since no account exists yet.
                 .requestMatchers(HttpMethod.POST, "/api/v1/customers/register").permitAll()
 
-                // ---------- សាធារណៈ៖ អានបាន មិនបាច់ login ----------
+                // ---------- Public: readable without login ----------
                 .requestMatchers(HttpMethod.GET, "/api/v1/categories/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/destinations/**").permitAll()
-                // គ្របដណ្តប់ /tours/{id}/reviews និង /reviews/summary ដែរ
+                // Also covers /tours/{id}/reviews and /reviews/summary.
                 .requestMatchers(HttpMethod.GET, "/api/v1/tours/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/schedules/*").permitAll()
 
-                // មគ្គុទ្ទេសក៍ម្នាក់ៗមើលបាន (ទំព័រព័ត៌មាន Tour) តែបញ្ជីទាំងមូល និង /available
-                // ជារបស់ ADMIN — ជាទិន្នន័យប្រតិបត្តិការខាងក្នុង
+                // A single guide is public (tour page); the full list and /available are ADMIN-only operational data.
                 .requestMatchers(HttpMethod.GET, "/api/v1/guides/available").hasAuthority("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/v1/guides/*").permitAll()
 
-                // ---------- Booking / Payment៖ ADMIN មុន ព្រោះជាករណីលើកលែងក្នុងផ្លូវរបស់ CUSTOMER ----------
+                // ---------- Booking / Payment: ADMIN first, as exceptions within CUSTOMER paths ----------
                 .requestMatchers(HttpMethod.PATCH, "/api/v1/bookings/*/confirm").hasAuthority("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/v1/bookings").hasAuthority("ADMIN")
                 .requestMatchers(HttpMethod.POST, "/api/v1/bookings/*/refunds").hasAuthority("ADMIN")
                 .requestMatchers("/api/v1/payments/**").hasAuthority("ADMIN")
 
-                // ---------- Review៖ ADMIN ឆ្លើយតប និងលាក់ ----------
+                // ---------- Review: ADMIN reply and hide ----------
                 .requestMatchers(HttpMethod.POST, "/api/v1/reviews/*/reply").hasAuthority("ADMIN")
                 .requestMatchers(HttpMethod.PATCH, "/api/v1/reviews/*/hide").hasAuthority("ADMIN")
 
-                // សង្ខេបទូទាត់ — ម្ចាស់ ឬ ADMIN (Service ពិនិត្យម្ចាស់ខ្លួនឯង)
+                // Payment summary: owner or ADMIN (service checks ownership).
                 .requestMatchers(HttpMethod.GET, "/api/v1/bookings/*/payments")
                         .hasAnyAuthority("CUSTOMER", "ADMIN")
 
                 // ---------- CUSTOMER ----------
                 .requestMatchers("/api/v1/customers/me/**").hasAuthority("CUSTOMER")
 
-                // GET /bookings/{code} បើកឲ្យទាំង CUSTOMER និង ADMIN — Service ពិនិត្យម្ចាស់ខ្លួនឯង
+                // GET /bookings/{code} is open to CUSTOMER and ADMIN; the service checks ownership.
                 .requestMatchers(HttpMethod.GET, "/api/v1/bookings/*").hasAnyAuthority("CUSTOMER", "ADMIN")
                 .requestMatchers("/api/v1/bookings/**").hasAuthority("CUSTOMER")
                 .requestMatchers("/api/v1/reviews/**").hasAuthority("CUSTOMER")
 
-                // ---------- ADMIN៖ ការកែប្រែទិន្នន័យមេទាំងអស់ ----------
+                // ---------- ADMIN: all master data changes ----------
                 .requestMatchers(
                         "/api/v1/categories/**",
                         "/api/v1/destinations/**",
@@ -105,32 +94,17 @@ public class SecurityConfig {
 
                 .anyRequest().authenticated());
 
-        // ៣. យន្តការផ្ទៀងផ្ទាត់ — JWT ពី Keycloak
+        // 3. Authentication: JWT from Keycloak
         http.oauth2ResourceServer(oauth2 -> oauth2
                 .jwt(Customizer.withDefaults()));
 
-        // ៤. បិទ CSRF — គ្មាន cookie ដូច្នេះគ្មានហានិភ័យ CSRF
+        // 4. CSRF disabled: no cookies, so no CSRF risk
         http.csrf(AbstractHttpConfigurer::disable);
 
         return http.build();
     }
 
-    /**
-     * បម្លែង role របស់ Keycloak ទៅជា authority របស់ Spring។
-     *
-     * <p>Keycloak ដាក់ realm role ក្នុង claim {@code {"realm_access": {"roles": [...]}}} និង
-     * client role (role បង្កើតនៅក្នុង client ដូចជា {@code tour-backend}) ក្នុង claim
-     * {@code {"resource_access": {"tour-backend": {"roles": [...]}}}} — ជា claim ខុសគ្នាទាំងស្រុង។
-     * ដូច្នេះត្រូវអានទាំងពីរ ដើម្បីកុំឲ្យ role ដែលបង្កើតក្នុង client បាត់។
-     *
-     * <p>Role name ត្រូវបម្លែងទៅជា uppercase ព្រោះ {@code hasAuthority("ADMIN")} ក្នុង
-     * {@link #apiFilterChain} ប្រៀបធៀបជា case-sensitive — Keycloak អាចអនុញ្ញាតឲ្យបង្កើត role ជា
-     * {@code admin} lowercase ក៏បាន។
-     *
-     * <p><b>គ្មាន prefix {@code ROLE_}</b> — ដូច្នេះត្រូវប្រើ {@code hasAuthority("ADMIN")}។
-     * បើប្រើ {@code hasRole("ADMIN")} Spring នឹងបន្ថែម {@code ROLE_} ដោយស្វ័យប្រវត្តិ
-     * ហើយ<b>មិនដែលផ្គូផ្គង</b>ជាដាច់ខាត។
-     */
+    // Maps Keycloak realm and client roles to uppercase authorities without ROLE_ (use hasAuthority).
     @Bean
     public JwtAuthenticationConverter jwtAuthenticationConverter() {
 

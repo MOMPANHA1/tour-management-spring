@@ -2,12 +2,7 @@ package co.panha.hibernate.tourmanagement.features.category.dto;
 
 import jakarta.validation.constraints.Size;
 
-/**
- * ទិន្នន័យកែប្រភេទ — UC1.4 (PATCH)។
- *
- * <p>គ្រប់ field អាច {@code null} — មានន័យថា "កុំប៉ះ field នេះ"។ ដូច្នេះគ្មាន {@code @NotBlank} ទេ
- * តែ {@code @Size} នៅតែអនុវត្តលើតម្លៃដែលផ្ញើមក។
- */
+// UC1.4 - PATCH request; null fields are left untouched, but @Size still applies to sent values.
 public record UpdateCategoryRequest(
 
         @Size(max = 80, message = "Category name cannot exceed 80 characters")

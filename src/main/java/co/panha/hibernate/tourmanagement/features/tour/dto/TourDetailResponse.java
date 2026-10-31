@@ -6,15 +6,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
-/**
- * រូបរាងពេញលេញសម្រាប់ទំព័រលម្អិត Tour (UC4.3)។
- *
- * <p>Record មិនអាច {@code extends} បានទេ ដូច្នេះ field របស់ {@link TourCardResponse}
- * ត្រូវសរសេរម្តងទៀតនៅទីនេះ — នេះជាការដោះដូរដែលទទួលយកបាន ព្រោះ record ផ្តល់
- * ភាពមិនប្រែប្រួល និង {@code equals}/{@code hashCode} ដោយឥតគិតថ្លៃ។
- *
- * <p>TODO ដំណាក់កាល ៣៖ បន្ថែម {@code upcomingSchedules} (F5) និង {@code recentReviews} (F9)។
- */
+// Full tour detail (UC4.3); records cannot extend, so card fields are repeated. TODO: add upcomingSchedules (F5), recentReviews (F9).
 public record TourDetailResponse(
         Long id,
         String code,

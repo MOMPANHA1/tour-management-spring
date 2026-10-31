@@ -12,7 +12,7 @@ import org.mapstruct.NullValuePropertyMappingStrategy;
 @Mapper(componentModel = "spring")
 public interface DestinationMapper {
 
-    // country កំណត់ដោយ Service; id និង audit បំពេញដោយ JPA
+    // country is set by the service; id and audit fields are filled by JPA.
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "country", ignore = true)
     @Mapping(target = "isDeleted", ignore = true)
@@ -20,7 +20,7 @@ public interface DestinationMapper {
     @Mapping(target = "updatedAt", ignore = true)
     Destination toEntity(CreateDestinationRequest request);
 
-    /** PATCH — field ដែល client មិនផ្ញើ (null) មិនជាន់លើតម្លៃចាស់។ */
+    // PATCH: null fields from the client do not overwrite existing values.
     @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "isDeleted", ignore = true)
@@ -28,7 +28,7 @@ public interface DestinationMapper {
     @Mapping(target = "updatedAt", ignore = true)
     void updateEntity(UpdateDestinationRequest request, @MappingTarget Destination destination);
 
-    /** {@code tourCount} មកពី Service (ការរាប់ក្នុង database) មិនមែនពី entity ទេ។ */
+    // tourCount comes from the service (database count), not from the entity.
     @Mapping(target = "tourCount", source = "tourCount")
     DestinationResponse toResponse(Destination destination, long tourCount);
 }

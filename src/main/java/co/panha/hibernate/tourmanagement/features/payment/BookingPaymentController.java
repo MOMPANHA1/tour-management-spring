@@ -16,10 +16,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-/**
- * ការទូទាត់ជាធនធានរងរបស់ការកក់ — ដាក់ដាច់ពី {@code PaymentController}
- * ព្រោះ base path ខុសគ្នា ដូចលំនាំ {@code TourScheduleController} ដែរ។
- */
+// Booking sub-resource kept separate from PaymentController because the base path differs.
 @Tag(name = "Payment")
 @RestController
 @RequiredArgsConstructor

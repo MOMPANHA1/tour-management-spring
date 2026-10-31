@@ -8,12 +8,7 @@ import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
-/**
- * ការវាយតម្លៃថ្មី — UC9.1។
- *
- * <p>{@code tourId} និង {@code customerId} មិនទទួលពី client ទេ — Service ទាញចេញពី
- * ការកក់។ បើទទួលពី client អតិថិជនអាចវាយតម្លៃ Tour ដែលខ្លួនមិនធ្លាប់ទៅ។
- */
+// UC9.1 - tourId/customerId are derived from the booking, never accepted from the client.
 public record CreateReviewRequest(
 
         @NotNull(message = "Rating is required")

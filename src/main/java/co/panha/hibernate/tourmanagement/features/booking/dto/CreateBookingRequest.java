@@ -9,16 +9,7 @@ import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
-/**
- * សំណើកក់ — UC7.1។
- *
- * <p><b>ខុសពីផែនការដើម</b>៖ {@code scheduleId} ជា {@code Long} មិនមែន {@code String} ទេ
- * (ផែនការសរសេរ {@code String @NotBlank} ដែលជាកំហុសវាយអក្សរ — {@code TourSchedule.id}
- * ជា {@code Long} តាំងពី {@code BaseEntity} មក)។
- *
- * <p>{@code customerId} មិនទទួលពី client ទេ — Service ទាញពី JWT។ បើទទួល
- * នោះអ្នកណាក៏កក់ជំនួសអ្នកដទៃបាន។
- */
+// UC7.1 request; no customerId here, the service reads it from the JWT so nobody can book for others.
 public record CreateBookingRequest(
 
         @NotNull(message = "Schedule id is required")

@@ -27,13 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/**
- * F8 — ការទូទាត់។
- *
- * <p><b>មិនអាស្រ័យលើ {@code BookingService}</b> ដោយចេតនា — ប្រើ {@code BookingRepository}
- * ដោយផ្ទាល់វិញ។ បើអាស្រ័យ នោះនឹងកើតរង្វង់ {@code BookingService ⇄ PaymentService}
- * ព្រោះ F7 ត្រូវហៅការសងប្រាក់វិញពេលលុបចោល។
- */
+// Uses BookingRepository, not BookingService, to avoid a circular dependency (F7 calls refunds on cancel).
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -43,16 +37,10 @@ public class PaymentServiceImpl implements PaymentService {
     private static final String CODE_PREFIX = "PM";
     private static final String SYSTEM_VERIFIER = "SYSTEM";
 
-    /** BR4 — ប្រាក់កក់ត្រូវយ៉ាងតិច ៣០% នៃតម្លៃសរុប។ */
+    // BR4 - deposit must be at least 30% of total price.
     private static final BigDecimal MIN_DEPOSIT_RATE = new BigDecimal("0.30");
 
-    /**
-     * វិធីទូទាត់ដែលបញ្ជាក់ភ្លាមដោយមិនរង់ចាំមនុស្ស។
-     *
-     * <p><b>ព្រមាន</b>៖ ការបញ្ជាក់នេះ <b>គ្មានការផ្ទៀងផ្ទាត់ជាមួយ gateway ពិតទេ</b> —
-     * ប្រព័ន្ធគ្រាន់តែជឿអ្វីដែល client ផ្ញើមក។ ពេលភ្ជាប់ gateway ពិត ត្រូវប្តូរឲ្យ
-     * {@code VERIFIED} កំណត់ដោយ webhook ពី gateway មិនមែនដោយ endpoint នេះទេ។
-     */
+    // Methods verified immediately; WARNING: no real gateway check, switch to webhook-driven VERIFIED later.
     private static final Set<PaymentMethod> AUTO_VERIFIED_METHODS =
             Set.of(PaymentMethod.ABA_PAY, PaymentMethod.KHQR,
                     PaymentMethod.CREDIT_CARD, PaymentMethod.WING);
@@ -61,20 +49,15 @@ public class PaymentServiceImpl implements PaymentService {
     private final BookingRepository bookingRepository;
     private final PaymentMapper paymentMapper;
 
-    /**
-     * UC8.1 — បង់ប្រាក់។
-     *
-     * <p>ការគណនា «ចំនួននៅសល់» រាប់ {@code PENDING} ចូលផង — បើមិនរាប់ អតិថិជនអាចផ្ញើ
-     * ការផ្ទេរពីរដងព្រមគ្នា ហើយទាំងពីរឆ្លងកាត់ការពិនិត្យ ទៅជាបង់លើស។
-     */
+    // UC8.1 - remaining amount counts PENDING too, so double submissions cannot overpay.
     @Override
     @Transactional
     public PaymentResponse pay(String bookingCode, CreatePaymentRequest request) {
 
-        // ២. Load
+        // 2. Load
         Booking booking = loadBookingForCurrentUser(bookingCode, false);
 
-        // ៣. Check Rules
+        // 3. Check rules
         requirePayableBooking(booking);
 
         if (request.type() == PaymentType.REFUND) {
@@ -94,7 +77,7 @@ public class PaymentServiceImpl implements PaymentService {
                     "This transaction id has already been used");
         }
 
-        // ៤. Calculate
+        // 4. Calculate
         BigDecimal remaining = remainingToCommit(booking);
 
         if (remaining.signum() <= 0) {
@@ -109,7 +92,7 @@ public class PaymentServiceImpl implements PaymentService {
 
         requireAmountMatchesType(request, booking, remaining);
 
-        // ៥. Build
+        // 5. Build
         Payment payment = new Payment();
         payment.setReferenceNo(nextPaymentReference());
         payment.setBooking(booking);
@@ -131,15 +114,15 @@ public class PaymentServiceImpl implements PaymentService {
             payment.setStatus(PaymentStatus.PENDING);
         }
 
-        // ៦. Save
+        // 6. Save
         Payment saved = paymentRepository.saveAndFlush(payment);
 
-        // ៧. Side Effects
+        // 7. Side effects
         if (saved.getStatus() == PaymentStatus.VERIFIED) {
             syncBookingPaidAmount(booking);
         }
 
-        // TODO ដំណាក់កាល ៥៖ notificationService.sendPaymentReceived(saved)
+        // TODO: stage 5 - notificationService.sendPaymentReceived(saved)
         log.info("Payment {} recorded for booking {} — {} {} ({})",
                 saved.getReferenceNo(), booking.getCode(), saved.getAmount(),
                 saved.getMethod(), saved.getStatus());
@@ -186,7 +169,7 @@ public class PaymentServiceImpl implements PaymentService {
 
         syncBookingPaidAmount(payment.getBooking());
 
-        // TODO ដំណាក់កាល ៥៖ notificationService.sendPaymentVerified(payment)
+        // TODO: stage 5 - notificationService.sendPaymentVerified(payment)
 
         return paymentMapper.toResponse(payment);
     }
@@ -204,12 +187,12 @@ public class PaymentServiceImpl implements PaymentService {
         payment.setVerifiedBy(AuthUtils.currentUsername());
         paymentRepository.saveAndFlush(payment);
 
-        // ការបដិសេធការសងវិញដោះកាតព្វកិច្ចចេញ — ដូច្នេះ paidAmount ត្រូវគណនាឡើងវិញ
+        // Rejecting a refund releases the obligation, so recompute paidAmount
         if (payment.getType() == PaymentType.REFUND) {
             syncBookingPaidAmount(payment.getBooking());
         }
 
-        // TODO ដំណាក់កាល ៥៖ notificationService.sendPaymentRejected(payment)
+        // TODO: stage 5 - notificationService.sendPaymentRejected(payment)
 
         return paymentMapper.toResponse(payment);
     }
@@ -227,12 +210,7 @@ public class PaymentServiceImpl implements PaymentService {
         return paymentMapper.toResponse(refund);
     }
 
-    /**
-     * សងវិញដោយហៅពី feature ផ្សេង — មិនបោះ exception បើគ្មានអ្វីត្រូវសង។
-     *
-     * <p>ខុសពី {@link #createRefund} ដែលជាសកម្មភាពរបស់ ADMIN ហើយត្រូវប្រាប់កំហុសច្បាស់ —
-     * នេះជាផ្នែកមួយនៃដំណើរការធំ (លុបចោលការកក់) ដែលមិនគួរបរាជ័យដោយសារគ្មានលុយត្រូវសង។
-     */
+    // Refund for other features; does not throw when there is nothing to refund (unlike createRefund).
     @Override
     @Transactional
     public BigDecimal refundForBooking(Booking booking, BigDecimal amount, String reason) {
@@ -265,8 +243,7 @@ public class PaymentServiceImpl implements PaymentService {
                     "toDate must be on or after fromDate");
         }
 
-        // ប្រៀបធៀបចន្លោះ [ថ្ងៃដើម 00:00, ថ្ងៃបញ្ចប់+១ 00:00) ជំនួស DATE(paidAt)
-        // ព្រោះ function នោះមិនស្តង់ដារក្នុង JPQL ហើយបំបែក index លើ paid_at។
+        // Range query instead of DATE(paidAt): not standard JPQL and breaks the paid_at index.
         LocalDateTime start = from.atStartOfDay();
         LocalDateTime end = to.plusDays(1).atStartOfDay();
 
@@ -289,9 +266,9 @@ public class PaymentServiceImpl implements PaymentService {
         );
     }
 
-    // ---------- វិន័យអាជីវកម្ម ----------
+    // ---------- Business rules ----------
 
-    /** BR2 — បង់មិនបានលើការកក់ដែលលុបចោល ឬបញ្ចប់ហើយ។ */
+    // BR2 - cannot pay a cancelled or completed booking.
     private void requirePayableBooking(Booking booking) {
 
         if (booking.getStatus() == BookingStatus.CANCELLED) {
@@ -303,7 +280,7 @@ public class PaymentServiceImpl implements PaymentService {
         }
     }
 
-    /** BR4 និងវិន័យ {@code FULL_PAYMENT}។ */
+    // BR4 and FULL_PAYMENT rule.
     private void requireAmountMatchesType(CreatePaymentRequest request, Booking booking, BigDecimal remaining) {
 
         if (request.type() == PaymentType.DEPOSIT) {
@@ -324,7 +301,7 @@ public class PaymentServiceImpl implements PaymentService {
         }
     }
 
-    /** BR6 — បញ្ជាក់/បដិសេធបានតែស្ថានភាព {@code PENDING}។ */
+    // BR6 - only PENDING payments can be verified or rejected.
     private void requirePendingPayment(Payment payment, String action) {
         if (payment.getStatus() != PaymentStatus.PENDING) {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
@@ -332,9 +309,9 @@ public class PaymentServiceImpl implements PaymentService {
         }
     }
 
-    // ---------- ជំនួយខាងក្នុង ----------
+    // ---------- Internal helpers ----------
 
-    /** BR7 — សងវិញមិនលើសចំនួនដែលបានបង់ពិត។ */
+    // BR7 - refund cannot exceed the amount actually paid.
     private BigDecimal maxRefundable(Booking booking) {
         return paymentRepository.sumVerifiedAmount(booking.getId())
                 .subtract(paymentRepository.sumRefundedAmount(booking.getId()));
@@ -356,7 +333,7 @@ public class PaymentServiceImpl implements PaymentService {
         refund.setMethod(method);
         refund.setAmount(amount);
         refund.setCurrency("USD");
-        // PENDING — រង់ចាំហិរញ្ញវត្ថុផ្ទេរប្រាក់ចេញពិតប្រាកដ
+        // PENDING until finance actually transfers the money out
         refund.setStatus(PaymentStatus.PENDING);
         refund.setNote(reason);
         refund.setPaidAt(LocalDateTime.now());
@@ -366,22 +343,14 @@ public class PaymentServiceImpl implements PaymentService {
 
         syncBookingPaidAmount(booking);
 
-        // TODO ដំណាក់កាល ៥៖ notificationService.sendRefundInitiated(saved)
+        // TODO: stage 5 - notificationService.sendRefundInitiated(saved)
         log.info("Refund {} created for booking {} — {} ({})",
                 saved.getReferenceNo(), booking.getCode(), saved.getAmount(), reason);
 
         return saved;
     }
 
-    /**
-     * គណនា {@code booking.paidAmount} ឡើងវិញពីតារាង {@code payments}។
-     *
-     * <p>មិនបូកបន្ថែមលើតម្លៃចាស់ទេ — គណនាពីដើមជានិច្ច ដូច្នេះការបដិសេធ ឬការសងវិញ
-     * ក៏ធ្វើឲ្យតម្លៃត្រឹមត្រូវដែរ។
-     *
-     * <p><b>ផលរំលងសំខាន់</b>៖ បង់គ្រប់ចំនួនហើយ + នៅ {@code PENDING} → ការកក់ក្លាយជា
-     * {@code CONFIRMED} ដោយស្វ័យប្រវត្តិ ដោយមិនចាំបាច់ ADMIN ចុច confirm។
-     */
+    // Recomputes booking.paidAmount from payments; fully paid + PENDING booking auto-becomes CONFIRMED.
     private void syncBookingPaidAmount(Booking booking) {
 
         BigDecimal verified = paymentRepository.sumVerifiedAmount(booking.getId());
@@ -397,13 +366,13 @@ public class PaymentServiceImpl implements PaymentService {
             log.info("Booking {} auto-confirmed — fully paid ({})",
                     booking.getCode(), booking.getPaidAmount());
 
-            // TODO ដំណាក់កាល ៥៖ notificationService.sendBookingConfirmed(booking)
+            // TODO: stage 5 - notificationService.sendBookingConfirmed(booking)
         }
 
         bookingRepository.save(booking);
     }
 
-    /** {@code committed = verified + pending − refunded} · {@code remaining = totalPrice − committed}។ */
+    // committed = verified + pending - refunded; remaining = totalPrice - committed
     private BigDecimal remainingToCommit(Booking booking) {
 
         BigDecimal committed = paymentRepository.sumVerifiedAmount(booking.getId())
@@ -419,10 +388,7 @@ public class PaymentServiceImpl implements PaymentService {
                         "Payment not found with reference = " + referenceNo));
     }
 
-    /**
-     * ទាញការកក់ ហើយពិនិត្យសិទ្ធិជាម្ចាស់ — បោះ <b>404</b> មិនមែន 403 ទេ
-     * ដូចលំនាំ {@code BookingServiceImpl}។
-     */
+    // Loads booking and checks ownership; throws 404 rather than 403 to match BookingServiceImpl.
     private Booking loadBookingForCurrentUser(String bookingCode, boolean allowAdmin) {
 
         Booking booking = bookingRepository.findByCodeAndIsDeletedFalse(bookingCode)

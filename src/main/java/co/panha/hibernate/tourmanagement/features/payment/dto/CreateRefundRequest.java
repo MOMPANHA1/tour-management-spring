@@ -8,7 +8,7 @@ import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 
-/** សំណើសងប្រាក់វិញដោយ ADMIN — UC8.5។ */
+// UC8.5 refund request by ADMIN.
 public record CreateRefundRequest(
 
         @NotNull(message = "Amount is required")

@@ -22,17 +22,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * ការវាយតម្លៃ — F9។
- *
- * <p><b>{@code tour} និង {@code customer} ទាញចេញពី {@code booking}</b> មិនមែនទទួលពី client ទេ។
- * ពួកវាធ្វើឲ្យទិន្នន័យស្ទួនដោយចេតនា (denormalized) ដើម្បីឲ្យការសួរតាម Tour លឿន
- * ដោយមិនចាំបាច់ join ឆ្លងកាត់ {@code bookings → tour_schedules → tours}។
- *
- * <p><b>{@code booking} ជា unique</b> — ការកក់មួយវាយតម្លៃបានតែម្តង (BR3)។ ការដាក់
- * unique constraint នៅកម្រិត database ការពារ race condition ដែល {@code existsByBookingId}
- * តែម្នាក់ឯងមិនអាចការពារបាន។
- */
+// Review (F9); tour/customer are denormalized from booking; booking is unique to enforce BR3 against races.
 @Getter
 @Setter
 @Entity
@@ -58,14 +48,14 @@ public class Review extends BaseEntity {
     @JoinColumn(name = "customer_id", nullable = false)
     private Customer customer;
 
-    /** ពិន្ទុរួម ១–៥ — ជាពិន្ទុតែមួយគត់ដែលចូលក្នុង {@code tour.averageRating}។ */
+    // Overall score 1-5; the only score feeding tour.averageRating.
     @Column(nullable = false)
     private Integer rating;
 
-    /** ពិន្ទុមគ្គុទ្ទេសក៍ ១–៥ — ជាជម្រើស។ */
+    // Guide score 1-5, optional.
     private Integer guideRating;
 
-    /** ពិន្ទុតម្លៃសមរម្យ ១–៥ — ជាជម្រើស។ */
+    // Value-for-money score 1-5, optional.
     private Integer valueRating;
 
     @Column(length = 180)
@@ -74,10 +64,7 @@ public class Review extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String comment;
 
-    /**
-     * URL រូបភាព — ដាក់ឈ្មោះតារាងច្បាស់លាស់ដូចលំនាំ {@code guide_languages} ដែរ
-     * ដើម្បីកុំឲ្យឈ្មោះប្រែប្រួលពេលប្តូរ version។
-     */
+    // Image URLs; explicit table name keeps it stable across version changes.
     @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(
             name = "review_image_urls",
@@ -86,12 +73,7 @@ public class Review extends BaseEntity {
     @Column(name = "image_url", length = 255)
     private List<String> imageUrls = new ArrayList<>();
 
-    /**
-     * ការលាក់ដោយ ADMIN — ខុសពី {@code isDeleted} ដែលជាការលុបដោយអតិថិជន។
-     *
-     * <p>ការវាយតម្លៃដែលលាក់នៅតែមានក្នុង database (សម្រាប់ការត្រួតពិនិត្យ) តែមិនរាប់
-     * ចូលពិន្ទុមធ្យម ហើយមិនបង្ហាញជាសាធារណៈទេ។
-     */
+    // Hidden by ADMIN (distinct from isDeleted); kept for audit but excluded from average and public lists.
     @Column(nullable = false)
     private Boolean isVisible = true;
 

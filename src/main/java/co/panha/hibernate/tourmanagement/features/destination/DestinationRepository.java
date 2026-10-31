@@ -13,16 +13,13 @@ public interface DestinationRepository extends JpaRepository<Destination, Long> 
 
     Optional<Destination> findByIdAndIsDeletedFalse(Long id);
 
-    /**
-     * ពិនិត្យស្ទួន <b>ដោយមិនច្រោះ {@code isDeleted}</b> — ព្រោះ unique constraint
-     * {@code (name, province)} ក្នុង database អនុវត្តលើជួរដែលលុប (soft) ដែរ។
-     */
+    // Does not filter isDeleted because the (name, province) unique constraint also covers soft-deleted rows.
     boolean existsByNameIgnoreCaseAndProvinceIgnoreCase(String name, String province);
 
     Page<Destination> findAllByIsDeletedFalse(Pageable pageable);
 
     Page<Destination> findAllByProvinceIgnoreCaseAndIsDeletedFalse(String province, Pageable pageable);
 
-    /** ប្រើនៅ F4 ពេល Tour ភ្ជាប់ទីតាំងច្រើនតាម id។ */
+    // Used by F4 when a tour links several destinations by id.
     List<Destination> findAllByIdInAndIsDeletedFalse(List<Long> ids);
 }

@@ -75,7 +75,7 @@ public class GuideServiceImpl implements GuideService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "endDate must be on or after startDate");
         }
 
-        // ទាញបញ្ជីអ្នករវល់ជាមុន ជំនួសឲ្យ subquery NOT IN — អានងាយជាង ហើយបញ្ជីមគ្គុទ្ទេសក៍តូច
+        // Fetch busy guides first instead of a NOT IN subquery: easier to read and the guide list is small
         List<Long> busyIds = scheduleRepository.findBusyGuideIds(startDate, endDate);
 
         List<Guide> available = busyIds.isEmpty()
@@ -124,7 +124,7 @@ public class GuideServiceImpl implements GuideService {
                     "Guide is already in status " + request.status());
         }
 
-        // វិន័យ៖ ដាក់ INACTIVE មិនបានបើនៅមានកាលវិភាគអនាគត — ភ្ញៀវនឹងគ្មានមគ្គុទ្ទេសក៍
+        // Rule: cannot set INACTIVE while future schedules exist, or customers would have no guide
         if (request.status() == GuideStatus.INACTIVE) {
             long upcoming = scheduleRepository.countUpcomingByGuide(guide.getId(), LocalDate.now());
 
@@ -147,7 +147,7 @@ public class GuideServiceImpl implements GuideService {
         guideRepository.save(guide);
     }
 
-    // ---------- ជំនួយខាងក្នុង ----------
+    // ---------- internal helpers ----------
 
     private Guide loadById(Long id) {
         return guideRepository.findByIdAndIsDeletedFalse(id)
@@ -155,14 +155,7 @@ public class GuideServiceImpl implements GuideService {
                         "Guide not found with id = " + id));
     }
 
-    /**
-     * បង្កើតលេខកូដបន្ទាប់ដែលមិនស្ទួន។
-     *
-     * <p>{@code countByIsDeletedFalse()} តែម្នាក់ឯងមិនគ្រប់គ្រាន់ទេ៖ បង្កើត GD-0001 រួចលុបវា (soft)
-     * នោះចំនួននៅតែ 0 ហើយការបង្កើតបន្ទាប់នឹងព្យាយាមប្រើ GD-0001 ម្តងទៀត → ប៉ះ unique constraint។
-     * ដូច្នេះត្រូវរំកិលទៅមុខរហូតដល់លេខទំនេរ ដូចលំនាំ slug ដែរ។
-     */
-    /** បំពេញ {@code assignedScheduleCount} ដែលមាននៅ database មិនមែនក្នុង entity។ */
+    // Fills assignedScheduleCount from the database, not the entity.
     private GuideResponse toResponse(Guide guide) {
         return guideMapper.toResponse(guide,
                 scheduleRepository.countByGuideIdAndIsDeletedFalse(guide.getId()));

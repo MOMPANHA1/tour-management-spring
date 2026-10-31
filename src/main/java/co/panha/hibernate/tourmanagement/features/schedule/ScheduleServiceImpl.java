@@ -38,7 +38,7 @@ public class ScheduleServiceImpl implements ScheduleService {
 
     private static final String CODE_PREFIX = "SC";
 
-    /** ស្ថានភាពដែលលែងកែបាន — ដំណើរបានចេញ បញ្ចប់ ឬបោះបង់រួច។ */
+    // Statuses that can no longer be edited.
     private static final Set<ScheduleStatus> LOCKED_STATUSES =
             EnumSet.of(ScheduleStatus.DEPARTED, ScheduleStatus.COMPLETED, ScheduleStatus.CANCELLED);
 
@@ -53,15 +53,15 @@ public class ScheduleServiceImpl implements ScheduleService {
     @Transactional
     public ScheduleResponse createNew(CreateScheduleRequest request) {
 
-        // ១. Validate កាលបរិច្ឆេទ
+        // 1. Validate dates
         requireDateOrder(request.departureDate(), request.returnDate());
 
-        // ２. Load
+        // 2. Load tour
         Tour tour = tourRepository.findByIdAndIsDeletedFalse(request.tourId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Tour not found with id = " + request.tourId()));
 
-        // ៣. Check Rules
+        // 3. Check rules
         requireDurationMatchesTour(request.departureDate(), request.returnDate(), tour);
         requireCapacityWithinTourLimits(request.capacity(), tour);
 
@@ -71,7 +71,7 @@ public class ScheduleServiceImpl implements ScheduleService {
             requireGuideFree(guide, request.departureDate(), request.returnDate(), null);
         }
 
-        // ５. Build
+        // 4. Build
         TourSchedule schedule = new TourSchedule();
         schedule.setCode(nextScheduleCode(request.departureDate()));
         schedule.setTour(tour);
@@ -126,7 +126,7 @@ public class ScheduleServiceImpl implements ScheduleService {
             requireDateOrder(finalDeparture, finalReturn);
             requireDurationMatchesTour(finalDeparture, finalReturn, schedule.getTour());
 
-            // មគ្គុទ្ទេសក៍ដែលចាត់តាំងរួចអាចជាប់រវល់ក្នុងចន្លោះថ្ងៃថ្មី
+            // An assigned guide may be busy in the new date range
             if (schedule.getGuide() != null) {
                 requireGuideFree(schedule.getGuide(), finalDeparture, finalReturn, schedule.getId());
             }
@@ -137,8 +137,7 @@ public class ScheduleServiceImpl implements ScheduleService {
 
         if (request.capacity() != null) {
             requireCapacityWithinTourLimits(request.capacity(), schedule.getTour());
-            // capacity ថ្មីមិនអាចតិចជាងកៅអីដែលកក់រួច — បើមិនពិនិត្យ ការកក់ដែលមានស្រាប់
-            // នឹងក្លាយជាលើសចំណុះភ្លាមៗ
+            // New capacity cannot be below already booked seats
             int booked = bookingRepository.countOccupiedSeats(schedule.getId());
             if (request.capacity() < booked) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT,
@@ -197,10 +196,7 @@ public class ScheduleServiceImpl implements ScheduleService {
         schedule.setCancelReason(request.reason());
         scheduleRepository.save(schedule);
 
-        // លុបចោលការកក់សកម្មទាំងអស់ — ភ្ញៀវមិនអាចទៅដំណើរដែលលែងមានទេ
-        //
-        // ការសងប្រាក់វិញត្រូវ<b>ពេញ ១០០%</b> មិនតាមវិន័យ BR8 ទេ ព្រោះការបោះបង់នេះ
-        // ជាកំហុសរបស់ក្រុមហ៊ុន មិនមែនរបស់ភ្ញៀវ។
+        // Cancel all active bookings; refund is 100% (not BR8) because the company cancelled
         List<Booking> affected = bookingRepository.findActiveBySchedule(schedule.getId());
 
         for (Booking booking : affected) {
@@ -209,11 +205,10 @@ public class ScheduleServiceImpl implements ScheduleService {
             booking.setCancelReason("Schedule cancelled: " + request.reason());
             bookingRepository.saveAndFlush(booking);
 
-            // សង ១០០% — ការបោះបង់នេះជាកំហុសក្រុមហ៊ុន មិនមែនរបស់ភ្ញៀវ ដូច្នេះ
-            // មិនអនុវត្តអត្រាពិន័យតាម BR8 ទេ ({@code null} = សងពេញអ្វីដែលបានបង់)។
+            // Full refund: null rate means refund everything paid
             paymentService.refundForBooking(booking, null, "Schedule cancelled: " + request.reason());
 
-            // TODO ដំណាក់កាល ៥៖ notificationService.notifyScheduleCancelled(booking)
+            // TODO: phase 5 - notificationService.notifyScheduleCancelled(booking)
         }
 
         if (!affected.isEmpty()) {
@@ -224,13 +219,7 @@ public class ScheduleServiceImpl implements ScheduleService {
         return toResponseWithSeats(schedule);
     }
 
-    /**
-     * រត់រៀងរាល់ថ្ងៃម៉ោង ០១:០០។
-     *
-     * <p>ប្រើ {@code isBefore(today)} មិនមែន {@code isBefore(tomorrow)} ទេ — កាលវិភាគដែលចេញ
-     * <b>ថ្ងៃនេះ</b> នៅមិនទាន់ {@code DEPARTED} ព្រោះម៉ោង ០១:០០ ភ្ញៀវនៅមិនទាន់ចេញដំណើរ។
-     * វាប្តូរនៅម៉ោង ០១:០០ ថ្ងៃបន្ទាប់វិញ។
-     */
+    // Runs daily at 01:00; uses isBefore(today) so a schedule departing today stays open until tomorrow's run.
     @Override
     @Transactional
     @Scheduled(cron = "${app.jobs.refresh-schedule-statuses.cron:0 0 1 * * *}")
@@ -238,7 +227,7 @@ public class ScheduleServiceImpl implements ScheduleService {
 
         LocalDate today = LocalDate.now();
 
-        // ក. ថ្ងៃចេញកន្លងផុត → DEPARTED
+        // a. Past departure date -> DEPARTED
         List<TourSchedule> departing = scheduleRepository
                 .findByStatusInAndDepartureDateBeforeAndIsDeletedFalse(
                         List.of(ScheduleStatus.OPEN, ScheduleStatus.FULL), today);
@@ -246,14 +235,14 @@ public class ScheduleServiceImpl implements ScheduleService {
         departing.forEach(schedule -> schedule.setStatus(ScheduleStatus.DEPARTED));
         scheduleRepository.saveAll(departing);
 
-        // ខ. ថ្ងៃត្រឡប់កន្លងផុត → COMPLETED
+        // b. Past return date -> COMPLETED
         List<TourSchedule> completing = scheduleRepository
                 .findByStatusAndReturnDateBeforeAndIsDeletedFalse(ScheduleStatus.DEPARTED, today);
 
         completing.forEach(schedule -> schedule.setStatus(ScheduleStatus.COMPLETED));
         scheduleRepository.saveAll(completing);
 
-        // គ. ការកក់ CONFIRMED នៃដំណើរដែលបញ្ចប់ → COMPLETED
+        // c. CONFIRMED bookings of completed trips -> COMPLETED
         int completedBookings = 0;
 
         for (TourSchedule schedule : completing) {
@@ -264,14 +253,14 @@ public class ScheduleServiceImpl implements ScheduleService {
             bookingRepository.saveAll(confirmed);
             completedBookings += confirmed.size();
 
-            // TODO ដំណាក់កាល ៤ (F9 Review)៖ notificationService.inviteToReview(booking)
+            // TODO: phase 4 (F9 Review) - notificationService.inviteToReview(booking)
         }
 
         log.info("refreshScheduleStatuses: DEPARTED {} · COMPLETED {} · bookings completed {}",
                 departing.size(), completing.size(), completedBookings);
     }
 
-    // ---------- ជំនួយខាងក្នុង ----------
+    // ---------- Internal helpers ----------
 
     private TourSchedule loadById(Long id) {
         return scheduleRepository.findByIdAndIsDeletedFalse(id)
@@ -302,7 +291,7 @@ public class ScheduleServiceImpl implements ScheduleService {
         }
     }
 
-    /** រយៈពេលកាលវិភាគត្រូវត្រូវគ្នានឹង {@code tour.durationDays} — រាប់បញ្ចូលថ្ងៃចេញ។ */
+    // Duration must equal tour.durationDays, counting the departure day.
     private void requireDurationMatchesTour(LocalDate departureDate, LocalDate returnDate, Tour tour) {
         long actualDays = DateUtils.daysBetween(departureDate, returnDate) + 1;
 
@@ -339,7 +328,7 @@ public class ScheduleServiceImpl implements ScheduleService {
         }
     }
 
-    /** បំពេញកៅអី និងតម្លៃពិត — ទិន្នន័យដែលគណនាពេលអាន មិនរក្សាទុក។ */
+    // Fill seats and effective price; computed on read, not stored.
     private ScheduleResponse toResponseWithSeats(TourSchedule schedule) {
 
         int booked = bookingRepository.countOccupiedSeats(schedule.getId());
@@ -349,7 +338,7 @@ public class ScheduleServiceImpl implements ScheduleService {
         return scheduleMapper.toResponse(schedule, booked, available, schedule.effectivePrice());
     }
 
-    /** លេខកូដតាមថ្ងៃចេញ + លេខចៃដន្យ — រំកិលរហូតដល់លេខទំនេរ។ */
+    // Code from departure date plus random number, retried until unused.
     private String nextScheduleCode(LocalDate departureDate) {
         String code = GenerateUtils.generateDateCode(CODE_PREFIX, departureDate);
 
